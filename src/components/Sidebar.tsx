@@ -36,6 +36,47 @@ export function Sidebar() {
   const location = useLocation();
   const { t } = useTranslation();
 
+  // Find which section should be open initially based on current path
+  const initialSection = SIDEBAR_MENU.find(section => 
+    section.items?.some(item => 
+      location.pathname.startsWith(item.path) || 
+      item.subItems?.some(sub => location.pathname === sub.path)
+    )
+  )?.title || "";
+
+  const [expandedSection, setExpandedSection] = React.useState<string>(initialSection);
+  const [expandedSubmenus, setExpandedSubmenus] = React.useState<string[]>([]);
+
+  // Sync expanded section and submenus when navigation happens
+  React.useEffect(() => {
+    const activeSection = SIDEBAR_MENU.find(section => 
+      section.items?.some(item => 
+        location.pathname.startsWith(item.path) || 
+        item.subItems?.some(sub => location.pathname === sub.path)
+      )
+    );
+    if (activeSection) {
+      setExpandedSection(activeSection.title);
+      
+      // Also auto-expand the parent submenu if we are on a sub-item route
+      activeSection.items?.forEach(item => {
+        if (item.subItems && location.pathname.startsWith(item.path)) {
+          setExpandedSubmenus(prev => prev.includes(item.path) ? prev : [...prev, item.path]);
+        }
+      });
+    }
+  }, [location.pathname]);
+
+  const toggleSubmenu = (path: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedSubmenus(prev => 
+      prev.includes(path) 
+        ? prev.filter(p => p !== path) 
+        : [...prev, path]
+    );
+  };
+
   return (
     <motion.aside
       initial={false}
@@ -100,7 +141,10 @@ export function Sidebar() {
         <div className="flex flex-col">
           <TooltipProvider delay={0}>
             {SIDEBAR_MENU.map((section, idx) => {
-              const isSectionActive = section.items?.some(item => location.pathname === item.path);
+              const isSectionActive = section.items?.some(item => 
+                location.pathname.startsWith(item.path) || 
+                item.subItems?.some(sub => location.pathname === sub.path)
+              );
               
               // If sidebar is collapsed and it has items, render sub-items as flattened icons
               if (sidebarCollapsed && section.items) {
@@ -170,7 +214,8 @@ export function Sidebar() {
                   key={idx}
                   type="single"
                   collapsible
-                  defaultValue={(isSectionActive ? section.title : "") as any}
+                  value={expandedSection}
+                  onValueChange={setExpandedSection}
                   className="w-full"
                 >
                   <AccordionItem value={section.title} className="border-none">
@@ -201,21 +246,39 @@ export function Sidebar() {
                               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{section.title}</span>
                             </div>
                             {section.items.map((item, itemIdx) => (
-                              <NavLink
-                                key={itemIdx}
-                                to={item.path}
-                                className={({ isActive }) =>
-                                  cn(
-                                    "flex items-center gap-3 px-4 py-2 text-sm transition-all duration-200",
-                                    isActive
-                                      ? "text-blue-600 bg-blue-50/50 dark:bg-blue-600/10 font-medium"
-                                      : "text-slate-600 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5"
-                                  )
-                                }
-                              >
-                                {item.icon && <item.icon className="h-4 w-4" />}
-                                {item.title}
-                              </NavLink>
+                              <React.Fragment key={itemIdx}>
+                                <NavLink
+                                  to={item.path}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      "flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-200 mx-2 rounded-lg",
+                                      isActive
+                                        ? "text-blue-600 bg-blue-50/50 dark:bg-blue-600/10 font-medium"
+                                        : "text-slate-600 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5"
+                                    )
+                                  }
+                                >
+                                  {item.icon && <item.icon className="h-4 w-4 shrink-0" />}
+                                  {item.title}
+                                </NavLink>
+                                {item.subItems?.map((sub, sIdx) => (
+                                  <NavLink
+                                    key={`sub-${sIdx}`}
+                                    to={sub.path}
+                                    className={({ isActive }) =>
+                                      cn(
+                                        "flex items-center gap-3 pl-10 pr-4 py-2 text-xs transition-all duration-200 mx-2 rounded-lg",
+                                        isActive
+                                          ? "text-blue-600 bg-blue-50/30 dark:bg-blue-600/10 font-medium"
+                                          : "text-slate-500 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-400/80 dark:hover:bg-white/5"
+                                      )
+                                    }
+                                  >
+                                    {sub.icon && <sub.icon className="h-3.5 w-3.5 shrink-0" />}
+                                    {sub.title}
+                                  </NavLink>
+                                ))}
+                              </React.Fragment>
                             ))}
                           </div>
                         </TooltipContent>
@@ -228,77 +291,90 @@ export function Sidebar() {
                           {/* Vertical Connector Line */}
                           <div className="absolute left-[27px] top-0 bottom-4 w-px bg-slate-200 dark:bg-slate-800" />
                           
-                          {section.items.map((item, itemIdx) => (
-                            <div key={itemIdx} className="flex flex-col relative group">
-                              <NavLink
-                                to={item.path}
-                                className={({ isActive }) =>
-                                  cn(
-                                    "flex items-center gap-3 pl-12 pr-4 py-2 text-sm transition-all duration-200 relative mx-2 rounded-lg",
-                                    isActive
-                                      ? "text-blue-600 font-semibold bg-blue-50/80 dark:bg-blue-600/10"
-                                      : "text-slate-600 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white"
-                                  )
-                                }
-                              >
-                                {/* Horizontal connector dot/line */}
-                                <div className={cn(
-                                  "absolute left-[15px] top-1/2 -translate-y-1/2 w-3 h-px bg-slate-200 dark:bg-slate-800",
-                                  location.pathname.startsWith(item.path) && "bg-blue-400"
-                                )} />
-                                
-                                {item.icon && <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", location.pathname === item.path ? "text-blue-600" : "text-slate-400 group-hover:text-blue-500")} />}
-                                <span>{item.title}</span>
-                                
-                                {item.subItems && (
-                                  <ChevronRight className={cn(
-                                    "ml-auto h-3 w-3 transition-transform duration-200",
-                                    location.pathname.startsWith(item.path) && "rotate-90"
+                          {section.items.map((item, itemIdx) => {
+                            const isSubmenuExpanded = expandedSubmenus.includes(item.path);
+                            const isItemActive = location.pathname.startsWith(item.path);
+
+                            return (
+                              <div key={itemIdx} className="flex flex-col relative group">
+                                <NavLink
+                                  to={item.path}
+                                  onClick={(e) => {
+                                    if (item.subItems) {
+                                      toggleSubmenu(item.path, e);
+                                    }
+                                  }}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      "flex items-center gap-3 pl-12 pr-4 py-2 text-sm transition-all duration-200 relative mx-2 rounded-lg",
+                                      (isActive || (item.subItems && isItemActive))
+                                        ? "text-blue-600 font-semibold bg-blue-50/80 dark:bg-blue-600/10"
+                                        : "text-slate-600 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white"
+                                    )
+                                  }
+                                >
+                                  {/* Horizontal connector dot/line */}
+                                  <div className={cn(
+                                    "absolute left-[15px] top-1/2 -translate-y-1/2 w-3 h-px bg-slate-200 dark:bg-slate-800",
+                                    isItemActive && "bg-blue-400"
                                   )} />
-                                )}
-                              </NavLink>
-                              
-                              {/* Third level nesting for subItems */}
-                              {item.subItems && (
-                                <AnimatePresence>
-                                  {location.pathname.startsWith(item.path) && (
-                                    <motion.div 
-                                      initial={{ height: 0, opacity: 0 }}
-                                      animate={{ height: "auto", opacity: 1 }}
-                                      exit={{ height: 0, opacity: 0 }}
-                                      className="overflow-hidden flex flex-col pl-14 relative"
-                                    >
-                                      {/* Sub-item vertical line */}
-                                      <div className="absolute left-[27px] top-0 bottom-2 w-px bg-slate-200 dark:bg-slate-800" />
-                                      
-                                      {item.subItems.map((sub, subIdx) => (
-                                        <NavLink
-                                          key={subIdx}
-                                          to={sub.path}
-                                          className={({ isActive }) =>
-                                            cn(
-                                              "flex items-center gap-3 pl-6 pr-6 py-2 text-[13px] transition-all duration-200 relative group/sub",
-                                              isActive
-                                                ? "text-blue-600 font-medium"
-                                                : "text-slate-500 hover:text-blue-600 dark:text-slate-400 dark:hover:text-white"
-                                            )
-                                          }
-                                        >
-                                          <div className={cn(
-                                            "w-1.5 h-1.5 rounded-full border-2 transition-all duration-200 z-10",
-                                            location.pathname === sub.path 
-                                              ? "bg-blue-600 border-blue-600 scale-110 shadow-[0_0_8px_rgba(37,99,235,0.4)]" 
-                                              : "bg-white border-slate-300 dark:bg-slate-800 dark:border-slate-600 group-hover/sub:border-blue-400"
-                                          )} />
-                                          {sub.title}
-                                        </NavLink>
-                                      ))}
-                                    </motion.div>
+                                  
+                                  {item.icon && <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", (location.pathname === item.path || (item.subItems && isItemActive)) ? "text-blue-600" : "text-slate-400 group-hover:text-blue-500")} />}
+                                  <span>{item.title}</span>
+                                  
+                                  {item.subItems && (
+                                    <ChevronRight className={cn(
+                                      "ml-auto h-3.5 w-3.5 transition-transform duration-300 ease-in-out",
+                                      isSubmenuExpanded && "rotate-90"
+                                    )} />
                                   )}
-                                </AnimatePresence>
-                              )}
-                            </div>
-                          ))}
+                                </NavLink>
+                                
+                                {/* Third level nesting for subItems */}
+                                {item.subItems && (
+                                  <AnimatePresence initial={false}>
+                                    {isSubmenuExpanded && (
+                                      <motion.div 
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: "auto", opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                                        className="overflow-hidden flex flex-col pl-14 relative"
+                                      >
+                                        {/* Sub-item vertical line */}
+                                        <div className="absolute left-[27px] top-0 bottom-2 w-px bg-slate-200 dark:bg-slate-800" />
+                                        
+                                        {item.subItems.map((sub, subIdx) => (
+                                          <NavLink
+                                            key={subIdx}
+                                            to={sub.path}
+                                            className={({ isActive }) =>
+                                              cn(
+                                                "flex items-center gap-3 pl-6 pr-4 py-1.5 text-[13px] transition-all duration-200 relative group/sub mx-2 rounded-lg mt-0.5",
+                                                isActive
+                                                  ? "text-blue-600 font-medium bg-blue-50/50 dark:bg-blue-600/10"
+                                                  : "text-slate-500 hover:text-blue-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white"
+                                              )
+                                            }
+                                          >
+                                            {sub.icon && (
+                                              <sub.icon className={cn(
+                                                "h-3.5 w-3.5 shrink-0 transition-colors z-10",
+                                                location.pathname === sub.path 
+                                                  ? "text-blue-600" 
+                                                  : "text-slate-400 group-hover/sub:text-blue-500"
+                                              )} />
+                                            )}
+                                            {sub.title}
+                                          </NavLink>
+                                        ))}
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </AccordionContent>
                     )}
