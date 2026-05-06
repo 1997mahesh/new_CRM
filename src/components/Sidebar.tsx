@@ -149,30 +149,77 @@ export function Sidebar() {
               // If sidebar is collapsed and it has items, render sub-items as flattened icons
               if (sidebarCollapsed && section.items) {
                 return (
-                  <div key={idx} className="flex flex-col gap-1 mb-2">
+                  <div key={idx} className="flex flex-col gap-1 mb-4">
+                    {/* Section Label Icon */}
+                    <div className="w-full">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={cn(
+                              "flex items-center justify-center py-2 text-slate-400 transition-all duration-200 border-l-4 border-transparent opacity-50",
+                              isSectionActive && "text-blue-600 opacity-100"
+                            )}
+                          >
+                            <section.icon className="h-4 w-4 shrink-0" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="font-bold uppercase tracking-wider text-[10px]">
+                          {section.title}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+
                     {section.items.map((item, itemIdx) => (
-                      <div key={`${idx}-${itemIdx}`} className="w-full">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <NavLink
-                              to={item.path}
-                              className={({ isActive }) =>
-                                cn(
-                                  "flex items-center justify-center py-3 transition-all duration-200 group border-l-4",
-                                  isActive
-                                    ? "bg-blue-50 text-blue-600 border-blue-600 shadow-sm dark:bg-blue-600/20 dark:text-white"
-                                    : "text-slate-600 hover:bg-slate-50 border-transparent dark:text-slate-400 dark:hover:bg-white/5"
-                                )
-                              }
-                            >
-                              {item.icon && <item.icon className={cn("h-5 w-5 shrink-0", location.pathname === item.path ? "text-blue-600" : "text-slate-400")} />}
-                            </NavLink>
-                          </TooltipTrigger>
-                          <TooltipContent side="right" className="font-medium">
-                            {item.title}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
+                      <React.Fragment key={`${idx}-${itemIdx}`}>
+                        <div className="w-full">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <NavLink
+                                to={item.path}
+                                className={({ isActive }) =>
+                                  cn(
+                                    "flex items-center justify-center py-3 transition-all duration-200 group border-l-4",
+                                    (isActive || (item.subItems && location.pathname.startsWith(item.path)))
+                                      ? "bg-blue-50 text-blue-600 border-blue-600 shadow-sm dark:bg-blue-600/20 dark:text-white"
+                                      : "text-slate-600 hover:bg-slate-50 border-transparent dark:text-slate-400 dark:hover:bg-white/5"
+                                  )
+                                }
+                              >
+                                {item.icon && <item.icon className={cn("h-5 w-5 shrink-0", (location.pathname === item.path || (item.subItems && location.pathname.startsWith(item.path))) ? "text-blue-600" : "text-slate-400")} />}
+                              </NavLink>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="font-medium">
+                              {item.title}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        
+                        {/* Sub-items as icons when collapsed */}
+                        {item.subItems?.map((sub, subIdx) => (
+                          <div key={`${idx}-${itemIdx}-sub-${subIdx}`} className="w-full">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <NavLink
+                                  to={sub.path}
+                                  className={({ isActive }) =>
+                                    cn(
+                                      "flex items-center justify-center py-2.5 transition-all duration-200 group border-l-4",
+                                      isActive
+                                        ? "bg-blue-50 text-blue-600 border-blue-600 shadow-sm dark:bg-blue-600/20 dark:text-white"
+                                        : "text-slate-500 hover:bg-slate-50 border-transparent dark:text-slate-400/80 dark:hover:bg-white/5"
+                                    )
+                                  }
+                                >
+                                  {sub.icon && <sub.icon className={cn("h-4 w-4 shrink-0", location.pathname === sub.path ? "text-blue-600" : "text-slate-400")} />}
+                                </NavLink>
+                              </TooltipTrigger>
+                              <TooltipContent side="right" className="font-medium">
+                                {sub.title}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </div>
                 );
