@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- PHASE 3: Primitives ---
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    
+    // User is verified (important for write operations)
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+
+    // --- VALIDATION HELPERS ---
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'name', 'role']) &&
+             data.email is string && data.email.size() <= 100 &&
+             data.name is string && data.name.size() <= 100 &&
+             data.role in ['Admin', 'Sales', 'Operations', 'Finance'];
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['name', 'type', 'status']) &&
+             data.name is string && data.name.size() <= 150 &&
+             data.type in ['Individual', 'Company'] &&
+             data.status in ['Active', 'Lead', 'Inactive'];
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['title', 'customerId', 'stage']) &&
+             data.title is string && data.title.size() <= 200 &&
+             isValidId(data.customerId) &&
+             data.stage in ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'];
+    }
+
+    function isValidTodo(data) {
+      return data.keys().hasAll(['task', 'status']) &&
+             data.task is string && data.task.size() <= 500 &&
+             data.status in ['Pending', 'In Progress', 'Completed', 'Cancelled'] &&
+             (!data.keys().hasAny(['assignedTo']) || isValidId(data.assignedTo));
+    }
+
+    // --- COLLECTIONS ---
+
+    // Users: Profiles and Metadata
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['name', 'email', 'departmentId']);
+    }
+
+    // Customers
+    match /customers/{customerId} {
+      allow read: if isSignedIn();
+      allow write: if isVerified();
+      // list check
+      allow list: if isSignedIn(); 
+    }
+
+    // Leads
+    match /leads/{leadId} {
+      allow read: if isSignedIn();
+      allow write: if isVerified();
+      // Enforce relational existence if creating
+      allow create: if isVerified() && isValidLead(incoming()) && exists(/databases/$(database)/documents/customers/$(incoming().customerId));
+    }
+
+    // Todos
+    match /todos/{todoId} {
+      allow read: if isSignedIn() && (resource.data.assignedTo == request.auth.uid || resource.data.groupId == 'public');
+      allow create: if isVerified() && isValidTodo(incoming());
+      allow update: if isVerified() && isValidTodo(incoming()) && (
+        isOwner(existing().assignedTo) || 
+        incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+      );
+      allow delete: if isOwner(existing().assignedTo);
+    }
+    
+    // Invoices
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn();
+      allow write: if isVerified() && (request.auth.token.role == 'Admin' || request.auth.token.role == 'Finance');
+    }
+  }
+}

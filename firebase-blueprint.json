@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with role-based access",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["Admin", "Sales", "Operations", "Finance"] },
+        "departmentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "name", "role"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Business or individual relationship",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "company": { "type": "string" },
+        "type": { "type": "string", "enum": ["Individual", "Company"] },
+        "status": { "type": "string", "enum": ["Active", "Lead", "Inactive"] },
+        "source": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "type", "status"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Potential sale in the pipeline",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "customerId": { "type": "string" },
+        "value": { "type": "number" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "stage": { "type": "string", "enum": ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost"] },
+        "assignedTo": { "type": "string" },
+        "expectedCloseDate": { "type": "string", "format": "date" }
+      },
+      "required": ["title", "customerId", "stage"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Sales billing document",
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string" },
+        "customerId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Paid", "Pending", "Overdue", "Cancelled"] },
+        "date": { "type": "string", "format": "date" },
+        "dueDate": { "type": "string", "format": "date" }
+      },
+      "required": ["invoiceNumber", "customerId", "amount", "status"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Inventory item",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "minStock": { "type": "number" }
+      },
+      "required": ["name", "sku", "price"]
+    },
+    "Todo": {
+      "title": "Todo",
+      "description": "Task for a user",
+      "type": "object",
+      "properties": {
+        "task": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Completed", "Cancelled"] },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "dueDate": { "type": "string", "format": "date" },
+        "assignedTo": { "type": "string" },
+        "groupId": { "type": "string" }
+      },
+      "required": ["task", "status"]
+    }
+  },
+  "firestore": {
+    "users": { "schema": "User", "description": "System users" },
+    "customers": { "schema": "Customer", "description": "Customer list" },
+    "leads": { "schema": "Lead", "description": "Sales pipeline" },
+    "invoices": { "schema": "Invoice", "description": "Billing documents" },
+    "products": { "schema": "Product", "description": "Inventory items" },
+    "todos": { "schema": "Todo", "description": "Task management" }
+  }
+}
