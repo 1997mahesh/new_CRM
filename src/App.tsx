@@ -10,9 +10,12 @@ import { DashboardPage } from "./pages/Dashboard";
 import { LoginPage } from "./pages/Login";
 import SalesDashboard from "./pages/sales/SalesDashboard";
 import { LeadsPage } from "./pages/sales/Leads";
+import { LeadCreatePage } from "./pages/sales/LeadCreate";
+import { LeadEditPage } from "./pages/sales/LeadEdit";
 import QuotationsPage from "./pages/sales/Quotations";
 import OrdersPage from "./pages/sales/Orders";
 import InvoicesPage from "./pages/sales/Invoices";
+import { InvoiceCreatePage } from "./pages/sales/InvoiceCreate";
 import PaymentsPage from "./pages/sales/Payments";
 import PurchaseDashboard from "./pages/purchase/PurchaseDashboard";
 import VendorsPage from "./pages/purchase/Vendors";
@@ -24,6 +27,7 @@ import InvCategoriesPage from "./pages/inventory/Categories";
 import StockPage from "./pages/inventory/Stock";
 import SupportDashboard from "./pages/support/SupportDashboard";
 import TicketsPage from "./pages/support/Tickets";
+import { TicketCreatePage } from "./pages/support/TicketCreate";
 import SupportCategoriesPage from "./pages/support/SupportCategories";
 import CRMDashboard from "./pages/crm/CRMDashboard";
 import CRM_Todos from "./pages/crm/Todos";
@@ -87,9 +91,12 @@ export default function App() {
           {/* Sales Module */}
           <Route path="/sales/dashboard" element={<SalesDashboard />} />
           <Route path="/sales/leads" element={<LeadsPage />} />
+          <Route path="/sales/leads/new" element={<LeadCreatePage />} />
+          <Route path="/sales/leads/:id/edit" element={<LeadEditPage />} />
           <Route path="/sales/quotations" element={<QuotationsPage />} />
           <Route path="/sales/orders" element={<OrdersPage />} />
           <Route path="/sales/invoices" element={<InvoicesPage />} />
+          <Route path="/sales/invoices/new" element={<InvoiceCreatePage />} />
           <Route path="/sales/payments" element={<PaymentsPage />} />
 
           {/* Purchase Module */}
@@ -107,6 +114,7 @@ export default function App() {
           {/* Support Module */}
           <Route path="/support/dashboard" element={<SupportDashboard />} />
           <Route path="/support/tickets" element={<TicketsPage />} />
+          <Route path="/support/tickets/new" element={<TicketCreatePage />} />
           <Route path="/support/categories" element={<SupportCategoriesPage />} />
 
           {/* Finance Module */}

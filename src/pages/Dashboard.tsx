@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
 import { 
   DollarSign, 
   Users, 
@@ -13,7 +15,8 @@ import {
   Plus,
   FilePlus,
   TicketPlus,
-  UserPlus
+  UserPlus,
+  Loader2
 } from "lucide-react";
 import { 
   LineChart, 
@@ -121,6 +124,139 @@ const STATS = [
 ];
 
 export function DashboardPage() {
+  const navigate = useNavigate();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await api.get('/dashboard/stats');
+        if (response.success) {
+          setData(response.data);
+        }
+      } catch (error) {
+        console.error("Dashboard data fetch failed");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+     return (
+       <div className="flex flex-col items-center justify-center h-full py-20 gap-4">
+          <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest italic leading-none">Synchronizing Data...</p>
+       </div>
+     )
+  }
+
+  const stats = data?.stats || {};
+  
+  const STAT_CONFIG = [
+    { 
+      title: "Revenue MTD", 
+      value: `$${(stats.revenueMTD || 0).toLocaleString()}`, 
+      change: "Global total", 
+      trend: "up", 
+      icon: DollarSign, 
+      color: "text-emerald-600", 
+      bg: "bg-emerald-50",
+      link: "/reports/sales",
+      linkText: "Sales dashboard →"
+    },
+    { 
+      title: "Open Invoices", 
+      value: stats.openInvoices?.toString() || "0", 
+      change: `${stats.overdueInvoices || 0} Overdue`, 
+      trend: "down", 
+      icon: FileCheck, 
+      color: "text-blue-600", 
+      bg: "bg-blue-50",
+      link: "/finance/invoices",
+      linkText: "Finance dashboard →"
+    },
+    { 
+      title: "Pipeline Leads", 
+      value: stats.pipelineLeads?.toString() || "0", 
+      change: `${stats.newLeadsToday || 0} New Today`, 
+      trend: "up", 
+      icon: TrendingUp, 
+      color: "text-indigo-600", 
+      bg: "bg-indigo-50",
+      link: "/sales/leads",
+      linkText: "Sales dashboard →"
+    },
+    { 
+      title: "Pending revenue", 
+      value: `$${(stats.pendingRevenue || 0).toLocaleString()}`, 
+      change: "Unpaid invoices", 
+      trend: "neutral", 
+      icon: Clock, 
+      color: "text-orange-600", 
+      bg: "bg-orange-50",
+      link: "/finance/payments",
+      linkText: "Finance dashboard →"
+    },
+    { 
+      title: "Open Tickets", 
+      value: stats.openTickets?.toString() || "0", 
+      change: `${stats.overdueTickets || 0} Overdue`, 
+      trend: "up", 
+      icon: Ticket, 
+      color: "text-purple-600", 
+      bg: "bg-purple-50",
+      link: "/support/tickets",
+      linkText: "Ticket dashboard →"
+    },
+    { 
+      title: "Low Stock Items", 
+      value: stats.lowStockCount?.toString() || "0", 
+      change: "Inventory alert", 
+      trend: "down", 
+      icon: Package, 
+      color: "text-red-600", 
+      bg: "bg-red-50",
+      link: "/inventory/products",
+      linkText: "Inventory alerts →"
+    },
+    { 
+      title: "Expenses MTD", 
+      value: `$${(stats.expensesMTD || 0).toLocaleString()}`, 
+      change: "Approved expenses", 
+      trend: "neutral", 
+      icon: DollarSign, 
+      color: "text-cyan-600", 
+      bg: "bg-cyan-50",
+      link: "/finance/expenses",
+      linkText: "Finance dashboard →"
+    },
+    { 
+      title: "AP Outstanding", 
+      value: `$${(stats.apOutstanding || 0).toLocaleString()}`, 
+      change: "Unpaid bills", 
+      trend: "neutral", 
+      icon: AlertTriangle, 
+      color: "text-amber-600", 
+      bg: "bg-amber-50",
+      link: "/purchase/orders",
+      linkText: "Purchase dashboard →"
+    },
+    { 
+      title: "Spend MTD", 
+      value: `$${(stats.spendMTD || 0).toLocaleString()}`, 
+      change: "Cumulative spend", 
+      trend: "up", 
+      icon: Clock, 
+      color: "text-slate-600", 
+      bg: "bg-slate-50",
+      link: "/finance/dashboard",
+      linkText: "Finance dashboard →"
+    },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -129,15 +265,26 @@ export function DashboardPage() {
           <p className="text-slate-500 dark:text-slate-400 text-sm">Real-time performance and key metrics across all modules.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-lg shadow-sm gap-2 transition-all hover:translate-y-[-1px]">
+          <Button 
+            onClick={() => navigate('/sales/leads/new')}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-lg shadow-sm gap-2 transition-all hover:translate-y-[-1px]"
+          >
             <UserPlus className="h-4 w-4" />
             <span>New Lead</span>
           </Button>
-          <Button variant="outline" className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 dark:hover:bg-white/10 font-bold h-10 px-4 rounded-lg gap-2 transition-all hover:translate-y-[-1px]">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/sales/invoices/new')}
+            className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 dark:hover:bg-white/10 font-bold h-10 px-4 rounded-lg gap-2 transition-all hover:translate-y-[-1px]"
+          >
             <FilePlus className="h-4 w-4" />
             <span>New Invoice</span>
           </Button>
-          <Button variant="outline" className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 dark:hover:bg-white/10 font-bold h-10 px-4 rounded-lg gap-2 transition-all hover:translate-y-[-1px]">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/support/tickets/new')}
+            className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 dark:hover:bg-white/10 font-bold h-10 px-4 rounded-lg gap-2 transition-all hover:translate-y-[-1px]"
+          >
             <TicketPlus className="h-4 w-4" />
             <span>New Ticket</span>
           </Button>
@@ -145,21 +292,32 @@ export function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STATS.map((stat, idx) => (
-          <div key={idx} className="stat-card flex items-start justify-between min-h-[110px]">
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.title}</p>
-              <p className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">{stat.value}</p>
-              <p className={cn(
-                "text-[11px] mt-1 font-semibold truncate",
-                stat.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : stat.trend === "down" ? "text-red-500 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
-              )}>
-                {stat.change}
-              </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {STAT_CONFIG.map((stat, idx) => (
+          <div key={idx} className="stat-card flex flex-col justify-between min-h-[140px] p-4 bg-white dark:bg-[#211c1f] rounded-xl border border-slate-200 dark:border-white/5 shadow-soft transition-all hover:border-slate-300 dark:hover:border-white/10 group">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.title}</p>
+                <p className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">{stat.value}</p>
+                <p className={cn(
+                  "text-[11px] mt-1 font-semibold truncate",
+                  stat.trend === "up" ? "text-emerald-600 dark:text-emerald-400" : stat.trend === "down" ? "text-red-500 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+                )}>
+                  {stat.change}
+                </p>
+              </div>
+              <div className={cn("p-2 rounded-lg shrink-0 ml-3 transition-transform group-hover:scale-110", stat.bg, "dark:bg-white/5")}>
+                <stat.icon className={cn("h-5 w-5", stat.color)} />
+              </div>
             </div>
-            <div className={cn("p-2 rounded-lg shrink-0 ml-3", stat.bg, "dark:bg-white/5")}>
-              <stat.icon className={cn("h-5 w-5", stat.color)} />
+            
+            <div className="mt-4 pt-3 border-t border-slate-50 dark:border-white/5 flex items-center">
+              <button 
+                onClick={() => navigate(stat.link)}
+                className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors uppercase tracking-tight"
+              >
+                {stat.linkText}
+              </button>
             </div>
           </div>
         ))}
@@ -180,7 +338,7 @@ export function DashboardPage() {
           </div>
           <div className="h-[350px] w-full min-w-0">
              <ResponsiveContainer width="100%" height="100%">
-               <AreaChart data={MOCK_REVENUE_DATA}>
+               <AreaChart data={data?.revenueChart || []}>
                  <defs>
                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>

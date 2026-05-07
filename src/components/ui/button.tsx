@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 
@@ -11,11 +10,11 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
         outline:
-          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300",
+          "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-white/5 dark:text-slate-400 dark:hover:text-slate-100",
+          "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
@@ -41,22 +40,19 @@ const buttonVariants = cva(
   }
 )
 
-const Button = React.forwardRef<
-  HTMLButtonElement,
-  Omit<ButtonPrimitive.Props, "variant" | "size"> & VariantProps<typeof buttonVariants> & { asChild?: boolean }
->(({ className, variant = "default", size = "default", asChild, children, ...props }, ref) => {
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  ...props
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
-      ref={ref}
       data-slot="button"
-      className={cn(buttonVariants({ variant: variant as any, size: size as any, className }))}
-      render={asChild ? (children as React.ReactElement) : undefined}
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    >
-      {!asChild && children}
-    </ButtonPrimitive>
+    />
   )
-})
-Button.displayName = "Button"
+}
 
 export { Button, buttonVariants }

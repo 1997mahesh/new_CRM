@@ -1,15 +1,17 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   Activity, 
   Search, 
   Filter, 
   Download, 
-  User, 
+  User as UserIcon, 
   Clock, 
   ShieldCheck, 
   AlertTriangle,
   FileText,
-  Monitor
+  Monitor,
+  Loader2,
+  RefreshCcw
 } from "lucide-react";
 import { 
   Table, 
@@ -23,16 +25,46 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-
-const AUDIT_LOGS = [
-  { id: 1, user: "admin@tpdcrm.io", action: "User Updated", module: "Users", ip: "192.168.1.1", date: "2026-05-06 10:24 AM", severity: "Info" },
-  { id: 2, user: "sales@tpdcrm.io", action: "Invoice Deleted", module: "Sales", ip: "192.168.1.45", date: "2026-05-06 09:12 AM", severity: "Warning" },
-  { id: 3, user: "admin@tpdcrm.io", action: "Login Success", module: "Auth", ip: "192.168.1.1", date: "2026-05-06 08:30 AM", severity: "Info" },
-  { id: 4, user: "finance@tpdcrm.io", action: "Expense Approved", module: "Finance", ip: "192.168.1.12", date: "2026-05-05 06:45 PM", severity: "Success" },
-  { id: 5, user: "unknown", action: "Failed Login Attempt", module: "Auth", ip: "45.12.89.23", date: "2026-05-05 11:20 PM", severity: "Critical" },
-];
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 export default function AuditLogPage() {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/system/audit-logs');
+      if (response.success) {
+        setLogs(response.data);
+      }
+    } catch (error) {
+      toast.error("Failed to load audit logs");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
+
+  const filteredLogs = logs.filter(log => 
+    log.action.toLowerCase().includes(search.toLowerCase()) || 
+    log.module.toLowerCase().includes(search.toLowerCase()) ||
+    (log.user?.email || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const getSeverity = (action: string) => {
+    if (action.includes('DELETE')) return 'Critical';
+    if (action.includes('UPDATE')) return 'Warning';
+    if (action.includes('CREATE')) return 'Success';
+    return 'Info';
+  };
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 px-4">
       {/* Header */}
@@ -48,6 +80,9 @@ export default function AuditLogPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={fetchLogs} className="rounded-xl border-slate-200 shadow-sm h-11 px-6 dark:border-slate-800">
+            <RefreshCcw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} /> Refresh
+          </Button>
           <Button variant="outline" className="rounded-xl border-slate-200 shadow-sm h-11 px-6 dark:border-slate-800">
             <Download className="h-4 w-4 mr-2" /> Export Log
           </Button>
@@ -60,6 +95,8 @@ export default function AuditLogPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
           <Input 
             placeholder="Search by user, action, or module..." 
+            value={search}
+            onChange={e => setSearch(e.target.value)}
             className="pl-10 h-10 border-none bg-slate-50 rounded-xl" 
           />
         </div>
@@ -75,39 +112,46 @@ export default function AuditLogPage() {
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Action</TableHead>
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Module</TableHead>
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">IP Address</TableHead>
-              <TableHead className="py-4 px-6 text-right text-[10px] uppercase font-bold tracking-widest text-slate-400">Severity</TableHead>
+              <TableHead className="py-4 px-6 text-right text-[10px] uppercase font-bold tracking-widest text-slate-400">Type</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {AUDIT_LOGS.map((log) => (
+            {loading && logs.length === 0 ? (
+               <TableRow>
+                 <TableCell colSpan={6} className="py-20 text-center">
+                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                   <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Compiling Audit Trail...</p>
+                 </TableCell>
+               </TableRow>
+            ) : filteredLogs.map((log) => (
               <TableRow key={log.id} className="group hover:bg-slate-50/50 transition-colors border-slate-100">
                 <TableCell className="py-4 px-6 text-xs text-slate-500 font-medium">
-                  {log.date}
+                  {format(new Date(log.createdAt), 'MMM dd, yyyy HH:mm')}
                 </TableCell>
                 <TableCell className="py-4 px-6">
                    <div className="flex items-center gap-2">
-                       <User className="h-3 w-3 text-slate-400" />
-                       <span className="text-sm font-medium text-slate-700">{log.user}</span>
+                       <UserIcon className="h-3 w-3 text-slate-400" />
+                       <span className="text-sm font-medium text-slate-700">{log.user?.email || 'System'}</span>
                    </div>
                 </TableCell>
                 <TableCell className="py-4 px-6 font-bold text-slate-800 text-sm">
                    {log.action}
                 </TableCell>
                 <TableCell className="py-4 px-6">
-                   <Badge variant="outline" className="bg-slate-50 text-slate-400 border-none text-[10px] uppercase font-bold">{log.module}</Badge>
+                   <Badge variant="outline" className="bg-slate-50 text-slate-400 border-none text-[10px] uppercase font-bold tracking-tight">{log.module}</Badge>
                 </TableCell>
                 <TableCell className="py-4 px-6 text-xs font-mono text-slate-400 italic">
-                   {log.ip}
+                   {log.ipAddress || 'Internal'}
                 </TableCell>
                 <TableCell className="py-4 px-6 text-right">
                    <Badge className={cn(
-                       "rounded-full px-2 py-0 text-[10px] font-bold uppercase",
-                       log.severity === 'Success' ? "bg-emerald-50 text-emerald-600" :
-                       log.severity === 'Warning' ? "bg-amber-50 text-amber-600" :
-                       log.severity === 'Critical' ? "bg-rose-50 text-rose-600" :
+                       "rounded-full px-2 py-0 text-[10px] font-bold uppercase border-none",
+                       getSeverity(log.action) === 'Success' ? "bg-emerald-50 text-emerald-600" :
+                       getSeverity(log.action) === 'Warning' ? "bg-amber-50 text-amber-600" :
+                       getSeverity(log.action) === 'Critical' ? "bg-rose-50 text-rose-600" :
                        "bg-blue-50 text-blue-600"
                    )}>
-                       {log.severity}
+                       {getSeverity(log.action)}
                    </Badge>
                 </TableCell>
               </TableRow>

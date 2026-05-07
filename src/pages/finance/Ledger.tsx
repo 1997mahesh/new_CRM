@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { 
   BarChart3, 
   Calendar as CalendarIcon, 
@@ -35,17 +35,41 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-
-const LEDGER_DATA = [
-  { id: "TRX-1001", date: "2026-05-05", type: "Income", description: "Payment for INV-2034", party: "Global Tech Solutions", reference: "INV-2034", amount: 12500 },
-  { id: "TRX-1002", date: "2026-05-04", type: "Expense", description: "AWS Monthly Hosting", party: "Amazon Web Services", reference: "BILL-202", amount: -450 },
-  { id: "TRX-1003", date: "2026-05-03", type: "Income", description: "Payment for INV-2035", party: "Blue Horizon Corp", reference: "INV-2035", amount: 8200 },
-  { id: "TRX-1004", date: "2026-05-02", type: "Expense", description: "Office Rent - May", party: "Skyline Properties", reference: "BILL-203", amount: -2500 },
-  { id: "TRX-1005", date: "2026-05-01", type: "Expense", description: "Marketing Ads - FB", party: "Meta Platforms", reference: "BILL-204", amount: -1200 },
-];
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function LedgerPage() {
-  const [filterType, setFilterType] = React.useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const fetchLedger = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params: any = { page, limit: 20, startDate, endDate };
+      if (filterType !== "all") params.type = filterType;
+      
+      const response = await api.get('/ledger', params);
+      if (response.success) {
+        setItems(response.data.items);
+      }
+    } catch (error) {
+      toast.error("Failed to fetch ledger");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filterType, startDate, endDate]);
+
+  useEffect(() => {
+    fetchLedger();
+  }, [fetchLedger]);
+
+  const totalIncome = items.reduce((sum, i) => sum + i.credit, 0);
+  const totalExpense = items.reduce((sum, i) => sum + i.debit, 0);
+  const currentBalance = items.length > 0 ? items[0].balance : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -75,14 +99,24 @@ export default function LedgerPage() {
             <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">From Date</label>
             <div className="relative">
               <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input type="date" className="pl-10 h-10 border-none bg-slate-50 rounded-xl" defaultValue="2026-05-01" />
+              <Input 
+                type="date" 
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="pl-10 h-10 border-none bg-slate-50 rounded-xl" 
+              />
             </div>
           </div>
           <div className="space-y-1.5 flex-1 min-w-[200px]">
             <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">To Date</label>
             <div className="relative">
               <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input type="date" className="pl-10 h-10 border-none bg-slate-50 rounded-xl" defaultValue="2026-05-31" />
+              <Input 
+                type="date" 
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="pl-10 h-10 border-none bg-slate-50 rounded-xl" 
+              />
             </div>
           </div>
           <div className="space-y-1.5 flex-1 min-w-[150px]">
@@ -99,8 +133,8 @@ export default function LedgerPage() {
              </Select>
           </div>
           <div className="flex items-end h-full mt-4 flex-wrap gap-2">
-             <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 h-10 shadow-lg shadow-blue-600/20">Apply Filters</Button>
-             <Button variant="ghost" className="text-slate-500 rounded-xl px-4 h-10 hover:bg-slate-50">Clear</Button>
+             <Button onClick={() => fetchLedger()} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 h-10 shadow-lg shadow-blue-600/20">Apply Filters</Button>
+             <Button variant="ghost" onClick={() => setFilterType("all")} className="text-slate-500 rounded-xl px-4 h-10 hover:bg-slate-50">Reset</Button>
           </div>
         </CardContent>
       </Card>
@@ -108,94 +142,100 @@ export default function LedgerPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard 
-          title="Total Income" 
-          amount="$20,700" 
+          title="Income (Period)" 
+          amount={`$${totalIncome.toLocaleString()}`} 
           icon={ArrowUpCircle} 
           color="emerald" 
-          subtitle="+15% from last month"
+          subtitle="Total credits in view"
         />
         <SummaryCard 
-          title="Total Outgoing" 
-          amount="$4,150" 
+          title="Outgoing (Period)" 
+          amount={`$${totalExpense.toLocaleString()}`} 
           icon={ArrowDownCircle} 
           color="rose" 
-          subtitle="+2% increase"
+          subtitle="Total debits in view"
         />
         <SummaryCard 
-          title="Net Cash Flow" 
-          amount="$16,550" 
+          title="Current Balance" 
+          amount={`$${currentBalance.toLocaleString()}`} 
           icon={Wallet} 
           color="blue" 
-          subtitle="Positive balance"
+          subtitle="Real-time master balance"
         />
       </div>
 
       {/* Ledger Table */}
       <div className="bg-white rounded-3xl shadow-soft border border-slate-100 overflow-hidden">
-        <Table>
-          <TableHeader className="bg-slate-50/50">
-            <TableRow className="hover:bg-transparent border-slate-100">
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Date</TableHead>
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Type</TableHead>
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Description</TableHead>
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Party</TableHead>
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Reference</TableHead>
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {LEDGER_DATA.length > 0 ? (
-              LEDGER_DATA.map((item) => (
-                <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors border-slate-100">
-                  <TableCell className="py-4 px-6 text-xs text-slate-500 font-medium">
-                    {item.date}
-                  </TableCell>
-                  <TableCell className="py-4 px-6">
-                    <Badge className={cn(
-                      "rounded-full px-2 py-0 text-[10px] font-bold uppercase",
-                      item.type === "Income" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
-                    )}>
-                      {item.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-4 px-6">
-                    <p className="text-sm font-semibold text-slate-800">{item.description}</p>
-                    <p className="text-[10px] font-mono text-slate-400 uppercase leading-tight">{item.id}</p>
-                  </TableCell>
-                  <TableCell className="py-4 px-6 font-medium text-xs text-slate-600">
-                    {item.party}
-                  </TableCell>
-                  <TableCell className="py-4 px-6">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 bg-blue-50 w-fit px-2 py-0.5 rounded-lg">
-                      <FileText className="h-3 w-3" />
-                      {item.reference}
-                    </div>
-                  </TableCell>
-                  <TableCell className={cn(
-                    "py-4 px-6 font-black text-sm",
-                    item.amount > 0 ? "text-emerald-600" : "text-rose-600"
-                  )}>
-                    {item.amount > 0 ? `+$${item.amount.toLocaleString()}` : `-$${Math.abs(item.amount).toLocaleString()}`}
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-                <TableRow>
-                    <TableCell colSpan={6} className="py-20 text-center">
-                        <div className="flex flex-col items-center gap-3">
-                            <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center">
-                                <RefreshCcw className="h-8 w-8 text-slate-200" />
-                            </div>
-                            <div>
-                                <p className="text-lg font-bold text-slate-600">No transactions found</p>
-                                <p className="text-sm text-slate-400">No transactions found for the selected period.</p>
-                            </div>
-                        </div>
+        {loading ? (
+          <div className="p-12 text-center text-slate-500 font-medium">Loading ledger data...</div>
+        ) : (
+          <Table>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow className="hover:bg-transparent border-slate-100">
+                <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Date</TableHead>
+                <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Type</TableHead>
+                <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Description</TableHead>
+                <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Reference</TableHead>
+                <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Amount</TableHead>
+                <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Balance</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.length > 0 ? (
+                items.map((item) => (
+                  <TableRow key={item.id} className="group hover:bg-slate-50/50 transition-colors border-slate-100">
+                    <TableCell className="py-4 px-6 text-xs text-slate-500 font-medium">
+                      {new Date(item.date).toLocaleDateString()}
                     </TableCell>
-                </TableRow>
-            )}
-          </TableBody>
-        </Table>
+                    <TableCell className="py-4 px-6">
+                      <Badge className={cn(
+                        "rounded-full px-2 py-0 text-[10px] font-bold uppercase",
+                        item.type === "income" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                      )}>
+                        {item.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      <p className="text-sm font-semibold text-slate-800">{item.description}</p>
+                      <p className="text-[10px] font-mono text-slate-400 uppercase leading-tight">{item.id.split('-')[0]}</p>
+                    </TableCell>
+                    <TableCell className="py-4 px-6">
+                      {item.reference && (
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 bg-blue-50 w-fit px-2 py-0.5 rounded-lg">
+                          <FileText className="h-3 w-3" />
+                          {item.reference.split('-')[0]}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className={cn(
+                      "py-4 px-6 font-black text-sm",
+                      item.credit > 0 ? "text-emerald-600" : "text-rose-600"
+                    )}>
+                      {item.credit > 0 ? `+$${item.credit.toLocaleString()}` : `-$${item.debit.toLocaleString()}`}
+                    </TableCell>
+                    <TableCell className="py-4 px-6 font-bold text-slate-800 text-sm">
+                       ${item.balance.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                  <TableRow>
+                      <TableCell colSpan={6} className="py-20 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                              <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center">
+                                  <RefreshCcw className="h-8 w-8 text-slate-200" />
+                              </div>
+                              <div>
+                                  <p className="text-lg font-bold text-slate-600">No transactions found</p>
+                                  <p className="text-sm text-slate-400">No transactions found for the selected period.</p>
+                              </div>
+                          </div>
+                      </TableCell>
+                  </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
     </div>
   );

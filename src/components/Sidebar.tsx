@@ -37,35 +37,44 @@ export function Sidebar() {
   const { t } = useTranslation();
 
   // Find which section should be open initially based on current path
-  const initialSection = SIDEBAR_MENU.find(section => 
-    section.items?.some(item => 
-      location.pathname.startsWith(item.path) || 
-      item.subItems?.some(sub => location.pathname === sub.path)
-    )
-  )?.title || "";
-
-  const [expandedSection, setExpandedSection] = React.useState<string>(initialSection);
-  const [expandedSubmenus, setExpandedSubmenus] = React.useState<string[]>([]);
-
-  // Sync expanded section and submenus when navigation happens
-  React.useEffect(() => {
-    const activeSection = SIDEBAR_MENU.find(section => 
+  const initialSection = React.useMemo(() => {
+    const saved = localStorage.getItem("sidebar_expanded_section");
+    if (saved) return JSON.parse(saved);
+    
+    return [SIDEBAR_MENU.find(section => 
       section.items?.some(item => 
         location.pathname.startsWith(item.path) || 
-        item.subItems?.some(sub => location.pathname === sub.path)
+        item.subItems?.some(itemSub => location.pathname === itemSub.path)
       )
-    );
-    if (activeSection) {
-      setExpandedSection(activeSection.title);
-      
-      // Also auto-expand the parent submenu if we are on a sub-item route
-      activeSection.items?.forEach(item => {
+    )?.title || ""];
+  }, []);
+
+  const initialSubmenus = React.useMemo(() => {
+    const saved = localStorage.getItem("sidebar_expanded_submenus");
+    if (saved) return JSON.parse(saved);
+    
+    const subs: string[] = [];
+    SIDEBAR_MENU.forEach(section => {
+      section.items?.forEach(item => {
         if (item.subItems && location.pathname.startsWith(item.path)) {
-          setExpandedSubmenus(prev => prev.includes(item.path) ? prev : [...prev, item.path]);
+          subs.push(item.path);
         }
       });
-    }
-  }, [location.pathname]);
+    });
+    return subs;
+  }, []);
+
+  const [expandedSections, setExpandedSections] = React.useState<string[]>(initialSection);
+  const [expandedSubmenus, setExpandedSubmenus] = React.useState<string[]>(initialSubmenus);
+
+  // Persist state changes
+  React.useEffect(() => {
+    localStorage.setItem("sidebar_expanded_section", JSON.stringify(expandedSections));
+  }, [expandedSections]);
+
+  React.useEffect(() => {
+    localStorage.setItem("sidebar_expanded_submenus", JSON.stringify(expandedSubmenus));
+  }, [expandedSubmenus]);
 
   const toggleSubmenu = (path: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -256,13 +265,13 @@ export function Sidebar() {
                 );
               }
 
+              const AccordionAny = Accordion as any;
               return (
-                <Accordion
+                <AccordionAny
                   key={idx}
-                  type="single"
-                  collapsible
-                  value={expandedSection}
-                  onValueChange={setExpandedSection}
+                  type="multiple"
+                  value={expandedSections}
+                  onValueChange={setExpandedSections}
                   className="w-full"
                 >
                   <AccordionItem value={section.title} className="border-none">
@@ -426,7 +435,7 @@ export function Sidebar() {
                       </AccordionContent>
                     )}
                   </AccordionItem>
-                </Accordion>
+                </AccordionAny>
               );
             })}
           </TooltipProvider>

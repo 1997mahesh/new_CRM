@@ -1,5 +1,5 @@
-import React from "react";
-import { Save, Mail, Server, Shield, Send, CheckCircle2, User } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Save, Mail, Server, Shield, Send, CheckCircle2, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -10,9 +10,97 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function EmailSettings() {
+  const [settings, setSettings] = useState<any>({
+    mailer: "smtp",
+    smtpHost: "",
+    smtpPort: "587",
+    smtpUser: "",
+    smtpPass: "",
+    encryption: "tls",
+    senderName: "",
+    senderEmail: ""
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [testing, setTesting] = useState(false);
+
+  const fetchSettings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/system/settings', { group: 'email' });
+      if (response.success && response.data.length > 0) {
+        const emailSettings: any = {};
+        response.data.forEach((s: any) => {
+           emailSettings[s.key] = s.value;
+        });
+        setSettings(prev => ({ ...prev, ...emailSettings }));
+      }
+    } catch (error) {
+      toast.error("Failed to load email settings");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await api.post('/system/settings/batch', {
+        settings: Object.entries(settings).map(([key, value]) => ({
+          key,
+          value,
+          group: 'email'
+        }))
+      });
+      if (response.success) {
+        toast.success("Email settings saved successfully");
+      }
+    } catch (error) {
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    if (!testEmail) {
+      toast.error("Please enter a recipient email");
+      return;
+    }
+    setTesting(true);
+    try {
+      const response = await api.post('/system/email/test', {
+        to: testEmail,
+        settings // Optionally send current settings if backend supports testing without saving
+      });
+      if (response.success) {
+        toast.success("Test email sent! Please check your inbox.");
+      }
+    } catch (error) {
+      toast.error("Failed to send test email. Check SMTP logs.");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+         <Loader2 className="h-10 w-10 text-indigo-600 animate-spin" />
+         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest leading-none">Loading Mail configuration...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 px-4">
       {/* Header */}
@@ -27,8 +115,13 @@ export default function EmailSettings() {
           </div>
         </div>
 
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-8 h-12 transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <Save className="h-4 w-4 mr-2" /> Save Settings
+        <Button 
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-8 h-12 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          Save Settings
         </Button>
       </div>
 
@@ -50,7 +143,7 @@ export default function EmailSettings() {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Mailer</label>
-                 <Select defaultValue="smtp">
+                 <Select value={settings.mailer} onValueChange={(val) => setSettings({...settings, mailer: val})}>
                     <SelectTrigger className="h-11 rounded-xl border-slate-200">
                        <SelectValue placeholder="Protocol" />
                     </SelectTrigger>
@@ -63,7 +156,7 @@ export default function EmailSettings() {
               </div>
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Encryption</label>
-                 <Select defaultValue="tls">
+                 <Select value={settings.encryption} onValueChange={(val) => setSettings({...settings, encryption: val})}>
                     <SelectTrigger className="h-11 rounded-xl border-slate-200">
                        <SelectValue placeholder="Encryption" />
                     </SelectTrigger>
@@ -76,19 +169,37 @@ export default function EmailSettings() {
               </div>
               <div className="md:col-span-2 space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">SMTP Host</label>
-                 <Input defaultValue="smtp.mailtrap.io" className="h-11 rounded-xl border-slate-200" />
+                 <Input 
+                   value={settings.smtpHost} 
+                   onChange={e => setSettings({...settings, smtpHost: e.target.value})}
+                   className="h-11 rounded-xl border-slate-200" 
+                 />
               </div>
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">SMTP Port</label>
-                 <Input defaultValue="587" className="h-11 rounded-xl border-slate-200" />
+                 <Input 
+                   value={settings.smtpPort} 
+                   onChange={e => setSettings({...settings, smtpPort: e.target.value})}
+                   className="h-11 rounded-xl border-slate-200" 
+                 />
               </div>
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">SMTP Username</label>
-                 <Input defaultValue="api-user-889" className="h-11 rounded-xl border-slate-200" />
+                 <Input 
+                   value={settings.smtpUser} 
+                   onChange={e => setSettings({...settings, smtpUser: e.target.value})}
+                   className="h-11 rounded-xl border-slate-200" 
+                 />
               </div>
               <div className="md:col-span-2 space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Password</label>
-                 <Input type="password" value="••••••••••••" readOnly className="h-11 rounded-xl border-slate-200 bg-slate-50" />
+                 <Input 
+                    type="password" 
+                    value={settings.smtpPass} 
+                    onChange={e => setSettings({...settings, smtpPass: e.target.value})}
+                    placeholder="Enter password"
+                    className="h-11 rounded-xl border-slate-200" 
+                 />
               </div>
            </div>
         </CardContent>
@@ -111,11 +222,21 @@ export default function EmailSettings() {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Sender Name</label>
-                 <Input defaultValue="Veltrox CRM Systems" className="h-11 rounded-xl border-slate-200" />
+                 <Input 
+                   value={settings.senderName} 
+                   onChange={e => setSettings({...settings, senderName: e.target.value})}
+                   placeholder="e.g. Veltrox Support"
+                   className="h-11 rounded-xl border-slate-200" 
+                 />
               </div>
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Sender Email</label>
-                 <Input defaultValue="notifications@veltroxcrm.com" className="h-11 rounded-xl border-slate-200" />
+                 <Input 
+                    value={settings.senderEmail} 
+                    onChange={e => setSettings({...settings, senderEmail: e.target.value})}
+                    placeholder="e.g. hello@domain.com"
+                    className="h-11 rounded-xl border-slate-200" 
+                 />
               </div>
            </div>
         </CardContent>
@@ -132,9 +253,18 @@ export default function EmailSettings() {
            <CardDescription>Verify your SMTP configuration by sending a test message.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col md:flex-row items-center gap-3">
-           <Input placeholder="Recipient email address..." className="h-11 rounded-xl bg-white border-blue-100 flex-1" />
-           <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-11 px-8 shadow-sm">
-              Send Test
+           <Input 
+             value={testEmail}
+             onChange={e => setTestEmail(e.target.value)}
+             placeholder="Recipient email address..." 
+             className="h-11 rounded-xl bg-white border-blue-100 flex-1" 
+           />
+           <Button 
+             onClick={handleTestEmail}
+             disabled={testing}
+             className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-11 px-8 shadow-sm"
+           >
+              {testing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : "Send Test"}
            </Button>
         </CardContent>
       </Card>

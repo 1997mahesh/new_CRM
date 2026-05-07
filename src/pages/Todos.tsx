@@ -88,9 +88,9 @@ export function TodosPage() {
   const seedData = async () => {
     if (!user) return;
     const initialTodos = [
-      { task: "Follow up with TechFlow about proposal", status: "In Progress", priority: "High", dueDate: "2026-05-10", groupId: "Sales", assignedTo: user.uid },
-      { task: "Review quarterly financial report", status: "Pending", priority: "Medium", dueDate: "2026-05-15", groupId: "Finance", assignedTo: user.uid },
-      { task: "Update laptop inventory list", status: "Completed", priority: "Low", dueDate: "2026-05-05", groupId: "Inventory", assignedTo: user.uid },
+      { task: "Follow up with TechFlow about proposal", status: "In Progress", priority: "High", dueDate: "2026-05-10", groupId: "Sales", assignedTo: user.id },
+      { task: "Review quarterly financial report", status: "Pending", priority: "Medium", dueDate: "2026-05-15", groupId: "Finance", assignedTo: user.id },
+      { task: "Update laptop inventory list", status: "Completed", priority: "Low", dueDate: "2026-05-05", groupId: "Inventory", assignedTo: user.id },
     ];
 
     try {

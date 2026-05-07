@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Users, 
   UserPlus, 
@@ -10,7 +11,8 @@ import {
   MoreVertical,
   Plus,
   Search,
-  MessageSquare
+  MessageSquare,
+  ArrowRight
 } from "lucide-react";
 import { 
   XAxis, 
@@ -69,6 +71,16 @@ const NO_ACTIVITY_CUSTOMERS = [
 ];
 
 export default function CRMDashboard() {
+  const navigate = useNavigate();
+
+  const STAT_CONFIG = [
+    { label: "Total Customers", value: "2,450", icon: Users, color: "text-blue-600", bg: "bg-blue-50", link: "/crm/customers", linkText: "View customers →" },
+    { label: "New This Month", value: "124", icon: UserPlus, color: "text-emerald-600", bg: "bg-emerald-50", link: "/crm/customers?filter=new", linkText: "View new customers →" },
+    { label: "Active", value: "1,890", icon: TrendingUp, color: "text-indigo-600", bg: "bg-indigo-50", link: "/crm/customers?status=active", linkText: "Active customer list →" },
+    { label: "Upcoming Follow-ups", value: "12", icon: Calendar, color: "text-amber-600", bg: "bg-amber-50", link: "/crm/followups", linkText: "View follow-ups →" },
+    { label: "Inactive", value: "436", icon: UserMinus, color: "text-slate-600", bg: "bg-slate-50", link: "/crm/customers?status=inactive", linkText: "Inactive customer report →" },
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header */}
@@ -78,10 +90,18 @@ export default function CRMDashboard() {
           <p className="text-slate-500 dark:text-slate-400 text-sm">Overview of your customer relationships</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 font-bold h-10 px-4 rounded-lg shadow-sm transition-all hover:translate-y-[-1px]">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/crm/customers')}
+            className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 font-bold h-10 px-4 rounded-lg shadow-sm transition-all hover:translate-y-[-1px]"
+          >
             Customers
           </Button>
-          <Button variant="outline" className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 font-bold h-10 px-4 rounded-lg shadow-sm transition-all hover:translate-y-[-1px]">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/crm/contacts')}
+            className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 font-bold h-10 px-4 rounded-lg shadow-sm transition-all hover:translate-y-[-1px]"
+          >
             Contacts
           </Button>
         </div>
@@ -89,21 +109,26 @@ export default function CRMDashboard() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {[
-          { label: "Total Customers", value: "2,450", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "New This Month", value: "124", icon: UserPlus, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Active", value: "1,890", icon: TrendingUp, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { label: "Upcoming Follow-ups", value: "12", icon: Calendar, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Inactive", value: "436", icon: UserMinus, color: "text-slate-600", bg: "bg-slate-50" },
-        ].map((stat, idx) => (
-          <div key={idx} className="stat-card flex items-start justify-between min-h-[100px]">
-             <div className="flex-1 min-w-0">
-               <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.label}</p>
-               <p className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">{stat.value}</p>
-             </div>
-             <div className={cn("p-2 rounded-lg shrink-0 ml-3", stat.bg, "dark:bg-white/5")}>
-               <stat.icon className={cn("h-5 w-5", stat.color)} />
-             </div>
+        {STAT_CONFIG.map((stat, idx) => (
+          <div key={idx} className="stat-card flex flex-col justify-between min-h-[140px] p-4 bg-white dark:bg-[#211c1f] rounded-xl border border-slate-200 dark:border-white/5 shadow-soft transition-all hover:border-slate-300 dark:hover:border-white/10 group">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                <p className="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">{stat.value}</p>
+              </div>
+              <div className={cn("p-2 rounded-lg shrink-0 ml-3 transition-transform group-hover:scale-110", stat.bg, "dark:bg-white/5")}>
+                <stat.icon className={cn("h-5 w-5", stat.color)} />
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-slate-50 dark:border-white/5 flex items-center">
+              <button 
+                onClick={() => navigate(stat.link)}
+                className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors uppercase tracking-tight"
+              >
+                {stat.linkText}
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -251,7 +276,11 @@ export default function CRMDashboard() {
             </div>
           </div>
           <div className="p-3 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/5 mt-auto">
-            <Button variant="ghost" className="w-full text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 h-8 uppercase tracking-widest">
+            <Button 
+              onClick={() => navigate('/crm/customers')}
+              variant="ghost" 
+              className="w-full text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 h-8 uppercase tracking-widest"
+            >
               View All Customers
             </Button>
           </div>
@@ -306,7 +335,11 @@ export default function CRMDashboard() {
             </div>
           </div>
           <div className="p-3 bg-slate-50 dark:bg-white/5 border-t border-slate-100 dark:border-white/5 mt-auto">
-            <Button variant="ghost" className="w-full text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 h-8 uppercase tracking-widest">
+            <Button 
+              onClick={() => navigate('/reports/crm-activity')}
+              variant="ghost" 
+              className="w-full text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 h-8 uppercase tracking-widest"
+            >
               View Activity Report
             </Button>
           </div>

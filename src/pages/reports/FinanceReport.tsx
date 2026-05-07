@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   BarChart3, 
   Calendar, 
@@ -11,7 +11,8 @@ import {
   Layers,
   LayoutDashboard,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Loader2
 } from "lucide-react";
 import { 
   LineChart, 
@@ -33,32 +34,51 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-const FINANCE_DATA = [
-  { name: "Jan", revenue: 85000, costs: 62000 },
-  { name: "Feb", revenue: 92000, costs: 65000 },
-  { name: "Mar", revenue: 110000, costs: 68000 },
-  { name: "Apr", revenue: 105000, costs: 72000 },
-  { name: "May", revenue: 145000, costs: 85000 },
-];
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function FinanceReport() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState("2026-05-01");
+  const [endDate, setEndDate] = useState("2026-05-31");
+
+  const fetchReport = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/reports/finance', { startDate, endDate });
+      if (response.success) {
+        setData(response.data);
+      }
+    } catch (error) {
+      toast.error("Failed to load finance report");
+    } finally {
+      setLoading(false);
+    }
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
+  if (loading && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Balancing books and generating P&L...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-slate-800">Finance Report</h1>
-          <p className="text-sm text-slate-500 font-medium italic">Period: <span className="text-slate-800 font-bold">May 1, 2026 - May 31, 2026</span></p>
+          <p className="text-sm text-slate-500 font-medium italic">Period: <span className="text-slate-800 font-bold">{startDate} - {endDate}</span></p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -73,146 +93,80 @@ export default function FinanceReport() {
         <CardContent className="p-4 flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[150px] space-y-1.5">
             <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">From</label>
-            <Input type="date" className="h-10 border-none bg-slate-50 rounded-xl" defaultValue="2026-05-01" />
+            <Input 
+              type="date" 
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              className="h-10 border-none bg-slate-50 rounded-xl" 
+            />
           </div>
           <div className="flex-1 min-w-[150px] space-y-1.5">
             <label className="text-[10px] uppercase font-bold text-slate-400 ml-1">To</label>
-            <Input type="date" className="h-10 border-none bg-slate-50 rounded-xl" defaultValue="2026-05-31" />
+            <Input 
+              type="date" 
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              className="h-10 border-none bg-slate-50 rounded-xl" 
+            />
           </div>
-          <div className="flex items-end mt-4">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-8 shadow-lg shadow-blue-600/20 text-xs font-bold uppercase tracking-widest">Generate Analysis</Button>
+          <div className="flex items-end h-full">
+            <Button onClick={fetchReport} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-8 shadow-lg shadow-blue-600/20 text-xs font-bold uppercase tracking-widest leading-none">Generate Analysis</Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <ReportStatCard title="Revenue" value="$206,000" trend="+12.5%" color="emerald" icon={TrendingUp} />
-        <ReportStatCard title="Total Costs" value="$147,000" trend="+4.2%" color="rose" icon={CreditCard} />
-        <ReportStatCard title="Net Profit" value="$59,000" trend="+18.2%" color="blue" icon={DollarSign} />
-        <ReportStatCard title="Outstanding" value="$12,400" subtitle="Pending collections" color="amber" icon={Briefcase} />
+        <ReportStatCard title="Total Income" value={`$${data?.summary.totalIncome.toLocaleString()}`} trend="+12.5%" color="emerald" icon={TrendingUp} />
+        <ReportStatCard title="Total Expenses" value={`$${data?.summary.totalExpenses.toLocaleString()}`} trend="+4.2%" color="rose" icon={CreditCard} />
+        <ReportStatCard title="Net Profit" value={`$${data?.summary.netProfit.toLocaleString()}`} trend="+18.2%" color="blue" icon={DollarSign} />
+        <ReportStatCard title="Net Margin" value={`${data?.summary.margin.toFixed(1)}%`} subtitle="Profitability ratio" color="amber" icon={Briefcase} />
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="pl" className="space-y-6">
-        <TabsList className="bg-white p-1 rounded-xl shadow-soft border border-slate-100 inline-flex w-auto overflow-x-auto max-w-full">
-          <TabsTrigger value="pl" className="rounded-lg px-6 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 font-bold text-sm whitespace-nowrap">P&L Overview</TabsTrigger>
-          <TabsTrigger value="ar" className="rounded-lg px-6 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 font-bold text-sm whitespace-nowrap">AR Aging</TabsTrigger>
-          <TabsTrigger value="ap" className="rounded-lg px-6 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 font-bold text-sm whitespace-nowrap">AP Aging</TabsTrigger>
-          <TabsTrigger value="expenses" className="rounded-lg px-6 py-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 font-bold text-sm whitespace-nowrap">Expenses by Category</TabsTrigger>
-        </TabsList>
+      {/* Summary Table and Assets */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-none shadow-soft overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-slate-800">Financial Summary</CardTitle>
+            <CardDescription>Consolidated P&L statement for the period</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <div className="flex justify-between items-center py-3 border-b border-slate-50">
+                <span className="text-sm font-medium text-slate-600">Operating Revenue</span>
+                <span className="text-sm font-bold text-slate-800 font-mono">${data?.summary.totalIncome.toLocaleString()}</span>
+             </div>
+             <div className="flex justify-between items-center py-3 border-b border-slate-50">
+                <span className="text-sm font-medium text-slate-600">Operating Expenses</span>
+                <span className="text-sm font-bold text-rose-600 font-mono">-${data?.summary.totalExpenses.toLocaleString()}</span>
+             </div>
+             <div className="flex justify-between items-center py-4 bg-slate-50 rounded-2xl px-4">
+                <span className="text-sm font-black text-slate-800 uppercase tracking-tight">Net Operating Income</span>
+                <span className="text-lg font-black text-blue-600 font-mono">${data?.summary.netProfit.toLocaleString()}</span>
+             </div>
+          </CardContent>
+        </Card>
 
-        <TabsContent value="pl" className="space-y-6">
-           <Card className="border-none shadow-soft overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-xl font-bold text-slate-800">Revenue vs Costs</CardTitle>
-                <CardDescription>Monthly profit and loss analysis report.</CardDescription>
-              </div>
-               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-none">Revenue</Badge>
-                <Badge variant="outline" className="bg-rose-50 text-rose-600 border-none">Costs</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={FINANCE_DATA} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis 
-                      dataKey="name" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: "#94a3b8", fontSize: 12 }} 
-                      dy={10}
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{ fill: "#94a3b8", fontSize: 12 }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                    />
-                    <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                    <Area type="monotone" dataKey="costs" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorCost)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="border-none shadow-soft overflow-hidden">
-                <CardHeader>
-                    <CardTitle className="text-lg font-bold text-slate-800">Cost Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <CostItem label="Product Procurement" amount="$45,000" percent={45} color="#3b82f6" />
-                    <CostItem label="Operational Expenses" amount="$25,000" percent={25} color="#6366f1" />
-                    <CostItem label="Marketing & Sales" amount="$15,000" percent={15} color="#f59e0b" />
-                    <CostItem label="HR & Admin" amount="$15,000" percent={15} color="#f43f5e" />
-                </CardContent>
-              </Card>
-
-              <Card className="border-none shadow-soft overflow-hidden">
-                <CardHeader>
-                    <CardTitle className="text-lg font-bold text-slate-800">P&L Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                            <span className="text-sm font-medium text-slate-600">Gross Revenue</span>
-                            <span className="text-sm font-bold text-slate-800">$206,000</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                            <span className="text-sm font-medium text-slate-600">Cost of Goods Sold</span>
-                            <span className="text-sm font-bold text-rose-600">-$120,400</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                            <span className="text-sm font-bold text-slate-800">Gross Profit</span>
-                            <span className="text-sm font-black text-emerald-600">$85,600</span>
-                        </div>
-                        <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                            <span className="text-sm font-medium text-slate-600">Operating Expenses</span>
-                            <span className="text-sm font-bold text-rose-600">-$26,600</span>
-                        </div>
-                        <div className="flex justify-between items-center py-4 bg-slate-50 rounded-xl px-4 mt-4">
-                            <span className="text-base font-black text-slate-800 uppercase tracking-tight">Net Profit</span>
-                            <span className="text-xl font-black text-blue-600">$59,000</span>
-                        </div>
-                    </div>
-                </CardContent>
-              </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+        <Card className="border-none shadow-soft overflow-hidden">
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-slate-800">Capital Flow</CardTitle>
+            <CardDescription>Outstanding receivables and payables</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+             <div className="p-4 rounded-3xl bg-blue-50/50 border border-blue-100 flex flex-col items-center justify-center text-center">
+                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Accounts Receivable</p>
+                <h4 className="text-xl font-black text-blue-600 font-mono">${data?.receivables.toLocaleString()}</h4>
+                <p className="text-[10px] text-blue-400 font-medium mt-1 italic">Expected collections</p>
+             </div>
+             <div className="p-4 rounded-3xl bg-rose-50/50 border border-rose-100 flex flex-col items-center justify-center text-center">
+                <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-1">Accounts Payable</p>
+                <h4 className="text-xl font-black text-rose-600 font-mono">${data?.payables.toLocaleString()}</h4>
+                <p className="text-[10px] text-rose-400 font-medium mt-1 italic">Pending obligations</p>
+             </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-}
-
-function CostItem({ label, amount, percent, color }: any) {
-    return (
-        <div className="space-y-2">
-            <div className="flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-600">{label}</span>
-                <span className="text-xs font-black text-slate-800">{amount}</span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${percent}%`, backgroundColor: color }} />
-            </div>
-        </div>
-    );
 }
 
 function ReportStatCard({ title, value, trend, subtitle, icon: Icon, color }: any) {

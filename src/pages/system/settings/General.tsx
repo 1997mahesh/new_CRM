@@ -1,5 +1,5 @@
-import React from "react";
-import { Save, Upload, Globe, Clock, Monitor, Layout, Settings, Image as ImageIcon } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Save, Upload, Globe, Clock, Monitor, Layout, Settings, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,8 +11,58 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function GeneralSettings() {
+  const [settings, setSettings] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/system/settings', { group: 'general' });
+        if (response.success) {
+          setSettings(response.data);
+        }
+      } catch (error) {
+        toast.error("Failed to load settings");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const response = await api.post('/system/settings', { settings, group: 'general' });
+      if (response.success) {
+        toast.success("General settings saved successfully");
+      }
+    } catch (error) {
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateSetting = (key: string, value: string) => {
+    setSettings((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Loading Settings...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20 px-4">
       {/* Header */}
@@ -27,8 +77,13 @@ export default function GeneralSettings() {
           </div>
         </div>
 
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-8 h-12 transition-all hover:scale-[1.02] active:scale-[0.98]">
-          <Save className="h-4 w-4 mr-2" /> Save Settings
+        <Button 
+          onClick={handleSave} 
+          disabled={saving}
+          className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20 px-8 h-12 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          {saving ? "Saving..." : "Save Settings"}
         </Button>
       </div>
 
@@ -50,11 +105,19 @@ export default function GeneralSettings() {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">CRM Name</label>
-                 <Input defaultValue="VeltroxCRM Enterprise" className="h-11 rounded-xl border-slate-200 focus-visible:ring-blue-500/20" />
+                 <Input 
+                   value={settings.app_name || ""} 
+                   onChange={e => updateSetting('app_name', e.target.value)}
+                   className="h-11 rounded-xl border-slate-200 focus-visible:ring-blue-500/20" 
+                 />
               </div>
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Tagline</label>
-                 <Input defaultValue="Infinite Business Scalability" className="h-11 rounded-xl border-slate-200 focus-visible:ring-blue-500/20" />
+                 <Input 
+                   value={settings.tagline || ""} 
+                   onChange={e => updateSetting('tagline', e.target.value)}
+                   className="h-11 rounded-xl border-slate-200 focus-visible:ring-blue-500/20" 
+                 />
               </div>
            </div>
 
@@ -92,8 +155,12 @@ export default function GeneralSettings() {
            <div className="space-y-2">
               <label className="text-xs font-bold text-slate-500 uppercase ml-1">Primary Color</label>
               <div className="flex items-center gap-3">
-                 <div className="h-11 w-11 rounded-xl bg-blue-600 shadow-lg shadow-blue-600/20" />
-                 <Input defaultValue="#3b82f6" className="h-11 max-w-[150px] rounded-xl border-slate-200 text-sm font-mono" />
+                 <div className="h-11 w-11 rounded-xl shadow-lg shadow-blue-600/20" style={{ backgroundColor: settings.primary_color || "#3b82f6" }} />
+                 <Input 
+                   value={settings.primary_color || "#3b82f6"} 
+                   onChange={e => updateSetting('primary_color', e.target.value)}
+                   className="h-11 max-w-[150px] rounded-xl border-slate-200 text-sm font-mono" 
+                 />
                  <Badge variant="outline" className="bg-slate-50 text-slate-400 border-none font-medium">Default Theme</Badge>
               </div>
            </div>
@@ -117,7 +184,7 @@ export default function GeneralSettings() {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Default Language</label>
-                 <Select defaultValue="en">
+                 <Select value={settings.language || "en"} onValueChange={val => updateSetting('language', val)}>
                     <SelectTrigger className="h-11 rounded-xl border-slate-200">
                        <SelectValue placeholder="Language" />
                     </SelectTrigger>
@@ -131,7 +198,7 @@ export default function GeneralSettings() {
               </div>
               <div className="space-y-2">
                  <label className="text-xs font-bold text-slate-500 uppercase ml-1">Timezone</label>
-                 <Select defaultValue="utc">
+                 <Select value={settings.timezone || "utc"} onValueChange={val => updateSetting('timezone', val)}>
                     <SelectTrigger className="h-11 rounded-xl border-slate-200">
                        <SelectValue placeholder="Timezone" />
                     </SelectTrigger>
@@ -142,60 +209,6 @@ export default function GeneralSettings() {
                        <SelectItem value="gmt">GMT +0:00</SelectItem>
                     </SelectContent>
                  </Select>
-              </div>
-              <div className="space-y-2">
-                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">Date Format</label>
-                 <Select defaultValue="mdy">
-                    <SelectTrigger className="h-11 rounded-xl border-slate-200">
-                       <SelectValue placeholder="Date Format" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-slate-100">
-                       <SelectItem value="mdy">MM/DD/YYYY</SelectItem>
-                       <SelectItem value="dmy">DD/MM/YYYY</SelectItem>
-                       <SelectItem value="ymd">YYYY/MM/DD</SelectItem>
-                    </SelectContent>
-                 </Select>
-              </div>
-               <div className="space-y-2">
-                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">Records Per Page</label>
-                 <Select defaultValue="10">
-                    <SelectTrigger className="h-11 rounded-xl border-slate-200">
-                       <SelectValue placeholder="Per Page" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-slate-100">
-                       <SelectItem value="10">10 Rows</SelectItem>
-                       <SelectItem value="25">25 Rows</SelectItem>
-                       <SelectItem value="50">50 Rows</SelectItem>
-                       <SelectItem value="100">100 Rows</SelectItem>
-                    </SelectContent>
-                 </Select>
-              </div>
-           </div>
-        </CardContent>
-      </Card>
-
-      {/* Currency Section */}
-      <Card className="border border-slate-200 shadow-sm rounded-2xl overflow-hidden dark:border-slate-800 dark:bg-slate-900/50">
-        <CardHeader className="bg-slate-50/50 border-b border-slate-100 px-8 py-5 dark:bg-white/5 dark:border-slate-800">
-           <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center dark:bg-amber-900/30 dark:text-amber-400">
-                 <Globe className="h-5 w-5" />
-              </div>
-              <div>
-                 <CardTitle className="text-xl font-bold text-slate-800 dark:text-slate-100">Currency Settings</CardTitle>
-                 <CardDescription className="dark:text-slate-400">Default system currency configuration.</CardDescription>
-              </div>
-           </div>
-        </CardHeader>
-        <CardContent className="p-8 space-y-8">
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">Currency Code</label>
-                 <Input defaultValue="USD" className="h-11 rounded-xl border-slate-200 font-mono" />
-              </div>
-               <div className="space-y-2">
-                 <label className="text-xs font-bold text-slate-500 uppercase ml-1">Currency Symbol</label>
-                 <Input defaultValue="$" className="h-11 rounded-xl border-slate-200 font-mono text-center max-w-[80px]" />
               </div>
            </div>
         </CardContent>

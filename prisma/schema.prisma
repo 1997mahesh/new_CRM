@@ -1,0 +1,327 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  firstName     String?
+  lastName      String?
+  roleId        String
+  role          Role      @relation(fields: [roleId], references: [id])
+  lastLogin     DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  auditLogs     AuditLog[]
+  assignedLeads Lead[]
+  assignedTickets Ticket[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  permissions RolePermission[]
+  users       User[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  module      String
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Setting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String @db.Text
+  group String @default("general")
+
+  @@map("settings")
+}
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  type        String    // e.g., "expense", "income"
+  description String?
+  isActive    Boolean   @default(true)
+  expenses    Expense[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("categories")
+}
+
+model Expense {
+  id             String    @id @default(uuid())
+  amount         Float
+  date           DateTime
+  description    String?
+  categoryId     String
+  category       Category  @relation(fields: [categoryId], references: [id])
+  status         String    @default("draft") // draft, pending, approved, rejected
+  paymentMethod  String?   // Cash, Bank Transfer, Credit Card, etc.
+  merchant       String?
+  reference      String?
+  receiptUrl     String?
+  approvedBy     String?
+  approvalDate   DateTime?
+  rejectionReason String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("expenses")
+}
+
+model LedgerEntry {
+  id          String   @id @default(uuid())
+  date        DateTime @default(now())
+  description String
+  type        String   @default("expense") // income, expense
+  debit       Float    @default(0)
+  credit      Float    @default(0)
+  balance     Float
+  reference   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("ledger_entries")
+}
+
+model Warehouse {
+  id        String   @id @default(uuid())
+  name      String
+  location  String?
+  inventory Inventory[]
+  movements StockMovement[]
+  createdAt DateTime @default(now())
+  @@map("warehouses")
+}
+
+model Vendor {
+  id              String   @id @default(uuid())
+  name            String
+  contactName     String?
+  email           String?
+  phone           String?
+  purchaseOrders  PurchaseOrder[]
+  createdAt       DateTime @default(now())
+  @@map("vendors")
+}
+
+model Inventory {
+  id          String    @id @default(uuid())
+  sku         String    @unique
+  name        String
+  description String?
+  quantity    Int       @default(0)
+  unitPrice   Float
+  valuation   Float     @default(0)
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  movements   StockMovement[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  @@map("inventory")
+}
+
+model StockMovement {
+  id          String    @id @default(uuid())
+  inventoryId String
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  type        String    // IN, OUT, ADJUST
+  quantity    Int
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  reference   String?   // PO ID or Invoice ID
+  date        DateTime  @default(now())
+  @@map("stock_movements")
+}
+
+model Lead {
+  id              String   @id @default(uuid())
+  title           String
+  companyName     String
+  contactPerson   String
+  email           String?
+  phone           String?
+  source          String?  // Website, Referral, etc.
+  pipelineStage   String   @default("New")
+  value           Float    @default(0)
+  assignedUserId  String?
+  assignedUser    User?    @relation(fields: [assignedUserId], references: [id])
+  priority        String   @default("Medium") // Low, Medium, High
+  notes           String?  @db.Text
+  status          String   @default("Open")
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("leads")
+}
+
+model Ticket {
+  id              String   @id @default(uuid())
+  subject         String
+  customerId      String?
+  customerName    String?  // If not linked to Customer
+  department      String
+  priority        String   @default("Medium")
+  status          String   @default("Open")
+  assignedUserId  String?
+  assignedUser    User?    @relation(fields: [assignedUserId], references: [id])
+  description     String   @db.Text
+  attachmentUrl   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("tickets")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  number        String   @unique
+  customerId    String
+  customerName  String?
+  issueDate     DateTime @default(now())
+  dueDate       DateTime
+  amount        Float    // Subtotal
+  taxAmount     Float    @default(0)
+  totalAmount   Float
+  status        String   @default("unpaid") // paid, unpaid, overdue, cancelled
+  items         Json?    // Array of objects
+  notes         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("invoices")
+}
+
+model PurchaseOrder {
+  id          String   @id @default(uuid())
+  number      String   @unique
+  vendorId    String
+  vendor      Vendor   @relation(fields: [vendorId], references: [id])
+  amount      Float
+  status      String   // Pending, Received, Cancelled
+  date        DateTime
+  createdAt   DateTime @default(now())
+  @@map("purchase_orders")
+}
+
+model FinanceDashboardCache {
+  id          String   @id @default(uuid())
+  key         String   @unique // e.g. "mtd_stats", "ytd_stats"
+  value       Json
+  updatedAt   DateTime @updatedAt
+
+  @@map("finance_dashboard_cache")
+}
+
+model Currency {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  symbol    String
+  rate      Float    @default(1.0)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("currencies")
+}
+
+model TaxRate {
+  id         String   @id @default(uuid())
+  name       String
+  rate       Float
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("tax_rates")
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  subject   String
+  body      String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+model AppModule {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  isEnabled   Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_modules")
+}
+
+model NumberSeries {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  prefix      String
+  lastNumber  Int      @default(0)
+  padding     Int      @default(4)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("number_series")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  module    String
+  details   String?  @db.Text
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}

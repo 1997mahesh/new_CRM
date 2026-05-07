@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   Search, 
   FileEdit, 
@@ -10,7 +10,10 @@ import {
   Filter,
   Columns,
   MoreVertical,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  RefreshCcw,
+  Save
 } from "lucide-react";
 import { 
   Table, 
@@ -24,24 +27,86 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-const TEMPLATES = [
-  { id: 1, name: "Invoice Sent", subject: "New Invoice from {{crm_name}} - {{invoice_number}}", variables: ["crm_name", "customer_name", "invoice_number", "amount"], status: "Active" },
-  { id: 2, name: "Low Stock Alert", subject: "Attention: Low Stock for {{product_name}}", variables: ["product_name", "sku", "current_stock"], status: "Active" },
-  { id: 3, name: "Password Reset", subject: "Reset your {{crm_name}} password", variables: ["user_name", "reset_link"], status: "Active" },
-  { id: 4, name: "Quotation Sent", subject: "Quotation Request: {{quotation_id}}", variables: ["customer_name", "quotation_id", "link"], status: "Active" },
-  { id: 5, name: "Ticket Opened", subject: "Support Ticket #{{ticket_id}} confirmed", variables: ["customer_name", "ticket_id", "subject"], status: "Active" },
-  { id: 6, name: "Ticket Reply", subject: "Update on your Ticket #{{ticket_id}}", variables: ["agent_name", "ticket_id"], status: "Active" },
-];
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function EmailTemplatesPage() {
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    subject: "",
+    body: "",
+    isActive: true
+  });
+
+  const fetchTemplates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/system/email-templates');
+      if (response.success) {
+        setTemplates(response.data);
+      }
+    } catch (error) {
+      toast.error("Failed to load templates");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  const handleEdit = (tmpl: any) => {
+    setEditingTemplate(tmpl);
+    setFormData({
+      name: tmpl.name,
+      subject: tmpl.subject,
+      body: tmpl.body,
+      isActive: tmpl.isActive
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingTemplate) {
+        const response = await api.put(`/system/email-templates/${editingTemplate.id}`, formData);
+        if (response.success) {
+          toast.success("Template updated successfully");
+          fetchTemplates();
+          setIsDialogOpen(false);
+        }
+      }
+    } catch (error) {
+      toast.error("Failed to update template");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredTemplates = templates.filter(tmpl => 
+    tmpl.name.toLowerCase().includes(search.toLowerCase()) || 
+    tmpl.subject.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
@@ -52,6 +117,9 @@ export default function EmailTemplatesPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button variant="outline" onClick={fetchTemplates} className="rounded-xl border-slate-200">
+            <RefreshCcw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} /> Refresh
+          </Button>
           <Button variant="outline" className="rounded-xl border-slate-200">
              <Database className="h-4 w-4 mr-2" /> All Variables
           </Button>
@@ -64,16 +132,10 @@ export default function EmailTemplatesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
           <Input 
             placeholder="Search templates by name or subject..." 
+            value={search}
+            onChange={e => setSearch(e.target.value)}
             className="pl-10 h-10 border-none bg-slate-50 rounded-xl focus-visible:ring-2 focus-visible:ring-blue-500/20" 
           />
-        </div>
-        <div className="flex gap-2">
-            <Button variant="outline" className="h-10 px-4 rounded-xl border-slate-200 text-slate-600">
-                <Filter className="h-4 w-4 mr-2" /> Filter
-            </Button>
-            <Button variant="outline" className="h-10 px-4 rounded-xl border-slate-200 text-slate-600">
-                <Columns className="h-4 w-4 mr-2" /> Columns
-            </Button>
         </div>
       </div>
 
@@ -84,13 +146,19 @@ export default function EmailTemplatesPage() {
             <TableRow className="hover:bg-transparent border-slate-100">
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Template</TableHead>
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Subject</TableHead>
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Variables</TableHead>
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Status</TableHead>
               <TableHead className="py-4 px-6 text-right text-[10px] uppercase font-bold tracking-widest text-slate-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {TEMPLATES.map((tmpl) => (
+            {loading && templates.length === 0 ? (
+               <TableRow>
+                 <TableCell colSpan={4} className="py-20 text-center">
+                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                   <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Loading Templates...</p>
+                 </TableCell>
+               </TableRow>
+            ) : filteredTemplates.map((tmpl) => (
               <TableRow key={tmpl.id} className="group hover:bg-slate-50/50 transition-colors border-slate-100">
                 <TableCell className="py-4 px-6">
                   <div className="flex items-center gap-3">
@@ -104,22 +172,24 @@ export default function EmailTemplatesPage() {
                   {tmpl.subject}
                 </TableCell>
                 <TableCell className="py-4 px-6">
-                  <div className="flex flex-wrap gap-1">
-                    {tmpl.variables.map((v) => (
-                        <Badge key={v} className="bg-slate-100 text-slate-500 border-none rounded px-1.5 py-0 text-[9px] font-mono lowercase">
-                            {"{{"}{v}{"}}"}
-                        </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell className="py-4 px-6">
-                   <Badge className="bg-emerald-50 text-emerald-600 border-none rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase">
-                      {tmpl.status}
+                   <Badge className={cn(
+                     "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase border-none",
+                     tmpl.isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"
+                   )}>
+                      {tmpl.isActive ? 'Active' : 'Inactive'}
                    </Badge>
                 </TableCell>
                 <TableCell className="py-4 px-6 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" title="Edit Template"><FileEdit className="h-4 w-4" /></Button>
+                         <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-blue-600 hover:bg-blue-50" 
+                            title="Edit Template"
+                            onClick={() => handleEdit(tmpl)}
+                          >
+                           <FileEdit className="h-4 w-4" />
+                         </Button>
                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400"><MoreVertical className="h-4 w-4" /></Button>
                     </div>
                 </TableCell>
@@ -128,6 +198,51 @@ export default function EmailTemplatesPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">Edit Email Template</DialogTitle>
+            <DialogDescription>
+              Configure the subject and HTML body for this automated notification. Use {"{{ }} "} for variables.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+             <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Template Name</Label>
+                <Input value={formData.name} disabled className="rounded-xl bg-slate-50 border-none h-11" />
+             </div>
+             <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Email Subject</Label>
+                <Input 
+                  value={formData.subject} 
+                  onChange={e => setFormData({ ...formData, subject: e.target.value })}
+                  className="rounded-xl bg-slate-50 border-none h-11" 
+                />
+             </div>
+             <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                   <Label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Content Body (HTML)</Label>
+                   <Button variant="ghost" size="sm" className="h-6 text-[10px] text-blue-600 hover:bg-blue-50">
+                      <Variable className="h-3 w-3 mr-1" /> Variable Help
+                   </Button>
+                </div>
+                <Textarea 
+                  value={formData.body} 
+                  onChange={e => setFormData({ ...formData, body: e.target.value })}
+                  className="min-h-[300px] rounded-xl bg-slate-50 border-none font-mono text-sm leading-relaxed" 
+                />
+             </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-xl">Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 shadow-lg shadow-blue-600/20">
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

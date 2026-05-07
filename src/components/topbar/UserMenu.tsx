@@ -16,28 +16,30 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/AuthContext";
+
+import { useNavigate } from "react-router-dom";
 
 export function UserMenu() {
   const { t } = useTranslation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const user = {
-    name: "Admin User",
-    email: "admin@tpdcrm.io",
-    role: "Super Admin",
-    avatar: ""
-  };
+  if (!user) return null;
+
+  const initials = (user.firstName?.[0] || "") + (user.lastName?.[0] || user.email[0]).toUpperCase();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="p-1 hover:bg-slate-50 dark:hover:bg-white/5 rounded-full flex items-center gap-2 pr-3 transition-colors h-10">
           <Avatar className="h-8 w-8 border border-white shadow-sm ring-2 ring-slate-100 dark:ring-white/5 ring-offset-0 transition-shadow group-hover:ring-blue-100 dark:group-hover:ring-blue-900">
-            <AvatarImage src={user.avatar} />
-            <AvatarFallback className="bg-blue-600 text-white text-xs font-bold uppercase transition-colors">A</AvatarFallback>
+            <AvatarImage src="" />
+            <AvatarFallback className="bg-blue-600 text-white text-xs font-bold uppercase transition-colors">{initials}</AvatarFallback>
           </Avatar>
           <div className="text-left hidden sm:block">
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-none truncate w-24">Admin</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-1 uppercase tracking-tighter">Super Admin</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-none truncate w-24">{user.firstName || user.email.split('@')[0]}</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-1 uppercase tracking-tighter">{user.role}</p>
           </div>
         </Button>
       </DropdownMenuTrigger>
@@ -45,11 +47,10 @@ export function UserMenu() {
         <div className="p-4 bg-slate-50/50 dark:bg-white/5 rounded-lg m-1 mb-2 border border-slate-100/50 dark:border-white/5">
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10 border border-white dark:border-white/10 shadow-sm">
-              <AvatarImage src={user.avatar} />
-              <AvatarFallback className="bg-blue-600 text-white text-sm font-bold">A</AvatarFallback>
+              <AvatarFallback className="bg-blue-600 text-white text-sm font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.name}</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.firstName} {user.lastName}</p>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
             </div>
           </div>
@@ -58,15 +59,24 @@ export function UserMenu() {
         <DropdownMenuSeparator className="mx-1 bg-slate-100 dark:bg-white/5" />
         
         <div className="p-1">
-          <DropdownMenuItem className="rounded-lg py-2.5 cursor-pointer font-medium mb-1 dark:text-slate-300 dark:focus:bg-white/5">
+          <DropdownMenuItem 
+            onClick={() => navigate('/profile')}
+            className="rounded-lg py-2.5 cursor-pointer font-medium mb-1 dark:text-slate-300 dark:focus:bg-white/5"
+          >
             <UserCircle className="mr-3 h-4 w-4 text-slate-400 dark:text-slate-500" />
             <span>{t("edit_profile")}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem className="rounded-lg py-2.5 cursor-pointer font-medium mb-1 dark:text-slate-300 dark:focus:bg-white/5">
+          <DropdownMenuItem 
+            onClick={() => navigate('/system/settings')}
+            className="rounded-lg py-2.5 cursor-pointer font-medium mb-1 dark:text-slate-300 dark:focus:bg-white/5"
+          >
             <Settings className="mr-3 h-4 w-4 text-slate-400 dark:text-slate-500" />
             <span>{t("settings")}</span>
           </DropdownMenuItem>
-          <DropdownMenuItem className="rounded-lg py-2.5 cursor-pointer font-medium dark:text-slate-300 dark:focus:bg-white/5">
+          <DropdownMenuItem 
+            onClick={() => navigate('/support/help')}
+            className="rounded-lg py-2.5 cursor-pointer font-medium dark:text-slate-300 dark:focus:bg-white/5"
+          >
             <HelpCircle className="mr-3 h-4 w-4 text-slate-400 dark:text-slate-500" />
             <span>{t("support_help")}</span>
           </DropdownMenuItem>
@@ -75,7 +85,10 @@ export function UserMenu() {
         <DropdownMenuSeparator className="mx-1 bg-slate-100 dark:bg-white/5" />
         
         <div className="p-1">
-          <DropdownMenuItem className="rounded-lg py-2.5 cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-500/10 font-bold">
+          <DropdownMenuItem 
+            onClick={() => logout()}
+            className="rounded-lg py-2.5 cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-500/10 font-bold"
+          >
             <LogOut className="mr-3 h-4 w-4" />
             <span className="flex-1">{t("sign_out")}</span>
           </DropdownMenuItem>

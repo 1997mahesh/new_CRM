@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { 
@@ -12,16 +12,39 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/AuthContext";
+import { toast } from "sonner";
 
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (user) {
       navigate("/dashboard");
     }
   }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const success = await login({ email, password });
+      if (success) {
+        toast.success("Welcome back!");
+        navigate("/dashboard");
+      } else {
+        toast.error("Invalid email or password");
+      }
+    } catch (error) {
+      toast.error("An error occurred during login");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
@@ -102,51 +125,51 @@ export function LoginPage() {
             <p className="text-slate-500 mt-2">Access your secure enterprise dashboard</p>
           </div>
 
-          <div className="space-y-6">
-            <Button 
-              onClick={login}
-              className="w-full h-12 bg-white border-2 border-slate-100 hover:bg-slate-50 text-slate-700 rounded-xl font-bold shadow-soft flex items-center justify-center gap-3 transition-all duration-300"
-            >
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="h-5 w-5" />
-              Sign in with Google
-            </Button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-100"></span>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-slate-400">or traditional access</span>
-              </div>
-            </div>
-
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <Input 
                   id="email" 
-                  disabled
-                  placeholder="admin@tpdcrm.com" 
-                  className="h-12 bg-slate-50 border-slate-200 rounded-xl px-4 opacity-50"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com" 
+                  required
+                  className="h-12 bg-slate-50 border-slate-200 rounded-xl px-4"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex justify-between items-center">
+                   <Label htmlFor="password">Password</Label>
+                   <Button variant="link" className="p-0 h-auto text-[10px] text-blue-600 font-bold uppercase tracking-tighter">Forgot Password?</Button>
+                </div>
                 <Input 
                   id="password" 
-                  disabled
                   type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••" 
-                  className="h-12 bg-slate-50 border-slate-200 rounded-xl px-4 opacity-50"
+                  required
+                  className="h-12 bg-slate-50 border-slate-200 rounded-xl px-4"
                 />
               </div>
 
-              <Button disabled className="w-full h-12 bg-slate-200 text-slate-400 rounded-xl font-bold uppercase tracking-widest text-xs">
-                Email Sign In (Restricted)
+              <div className="flex items-center space-x-2">
+                <Checkbox id="remember" className="rounded-md border-slate-300" />
+                <label htmlFor="remember" className="text-xs font-bold text-slate-500 cursor-pointer">Remember this session</label>
+              </div>
+
+              <Button 
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all duration-300"
+              >
+                {isSubmitting ? "Authenticating..." : "Sign In to Dashboard"}
               </Button>
             </div>
-          </div>
+          </form>
 
           <div className="mt-8 pt-8 border-t border-slate-100 text-center">
             <p className="text-[10px] text-slate-400 leading-relaxed italic">

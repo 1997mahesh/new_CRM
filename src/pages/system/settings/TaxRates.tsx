@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { 
   Plus, 
   Percent, 
@@ -7,7 +7,9 @@ import {
   Trash2, 
   BadgeCheck,
   Search,
-  FileText
+  FileText,
+  Loader2,
+  RefreshCcw
 } from "lucide-react";
 import { 
   Table, 
@@ -25,17 +27,105 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-
-const TAX_RATES = [
-  { id: 1, name: "GST 18%", rate: 18.0, description: "Goods & Services Tax (Standard)", status: "Active", isDefault: true },
-  { id: 2, name: "GST 10%", rate: 10.0, description: "Reduced Rate for services", status: "Active", isDefault: false },
-  { id: 3, name: "GST 5%", rate: 5.0, description: "Essential commodities", status: "Active", isDefault: false },
-  { id: 4, name: "No Tax", rate: 0.0, description: "Zero-rated transactions", status: "Active", isDefault: false },
-  { id: 5, name: "VAT 20%", rate: 20.0, description: "Value Added Tax (International)", status: "Active", isDefault: false },
-];
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function TaxRatesPage() {
+  const [taxRates, setTaxRates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingRate, setEditingRate] = useState<any>(null);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    rate: 0,
+    isActive: true
+  });
+
+  const fetchTaxRates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/system/tax-rates');
+      if (response.success) {
+        setTaxRates(response.data);
+      }
+    } catch (error) {
+      toast.error("Failed to load tax rates");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTaxRates();
+  }, [fetchTaxRates]);
+
+  const handleOpenDialog = (rate?: any) => {
+    if (rate) {
+      setEditingRate(rate);
+      setFormData({
+        name: rate.name,
+        rate: rate.rate,
+        isActive: rate.isActive
+      });
+    } else {
+      setEditingRate(null);
+      setFormData({
+        name: "",
+        rate: 0,
+        isActive: true
+      });
+    }
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (editingRate) {
+        const response = await api.put(`/system/tax-rates/${editingRate.id}`, formData);
+        if (response.success) {
+          toast.success("Tax rate updated");
+          fetchTaxRates();
+          setIsDialogOpen(false);
+        }
+      } else {
+        const response = await api.post('/system/tax-rates', formData);
+        if (response.success) {
+          toast.success("Tax rate created");
+          fetchTaxRates();
+          setIsDialogOpen(false);
+        }
+      }
+    } catch (error) {
+      toast.error("Operation failed");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this tax rate?")) return;
+    try {
+      const response = await api.delete(`/system/tax-rates/${id}`);
+      if (response.success) {
+        toast.success("Tax rate deleted");
+        fetchTaxRates();
+      }
+    } catch (error) {
+      toast.error("Failed to delete tax rate");
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Header */}
@@ -46,7 +136,10 @@ export default function TaxRatesPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20">
+          <Button variant="outline" onClick={fetchTaxRates} className="rounded-xl border-slate-200">
+            <RefreshCcw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} /> Refresh
+          </Button>
+          <Button onClick={() => handleOpenDialog()} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-600/20">
             <Plus className="h-4 w-4 mr-2" /> Add Tax Rate
           </Button>
         </div>
@@ -59,20 +152,23 @@ export default function TaxRatesPage() {
             <TableRow className="hover:bg-transparent border-slate-100">
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Name</TableHead>
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Rate %</TableHead>
-              <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Description</TableHead>
               <TableHead className="py-4 px-6 text-[10px] uppercase font-bold tracking-widest text-slate-400">Status</TableHead>
               <TableHead className="py-4 px-6 text-right text-[10px] uppercase font-bold tracking-widest text-slate-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {TAX_RATES.map((tax) => (
+            {loading && taxRates.length === 0 ? (
+               <TableRow>
+                 <TableCell colSpan={4} className="py-20 text-center">
+                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin mx-auto mb-4" />
+                   <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Loading Tax Rates...</p>
+                 </TableCell>
+               </TableRow>
+            ) : taxRates.map((tax) => (
               <TableRow key={tax.id} className="group hover:bg-slate-50/50 transition-colors border-slate-100">
                 <TableCell className="py-4 px-6">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-slate-800">{tax.name}</span>
-                    {tax.isDefault && (
-                        <Badge className="bg-indigo-600 text-white border-none rounded-full px-1.5 py-0 text-[8px] font-bold uppercase">Default</Badge>
-                    )}
                   </div>
                 </TableCell>
                 <TableCell className="py-4 px-6">
@@ -80,20 +176,22 @@ export default function TaxRatesPage() {
                     {tax.rate.toFixed(1)}%
                   </Badge>
                 </TableCell>
-                <TableCell className="py-4 px-6 text-xs text-slate-500 font-medium">
-                  {tax.description}
-                </TableCell>
                 <TableCell className="py-4 px-6">
-                   <Badge className="bg-emerald-50 text-emerald-600 border-none rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase">
-                      {tax.status}
+                   <Badge className={cn(
+                     "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase border-none",
+                     tax.isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-400"
+                   )}>
+                      {tax.isActive ? 'Active' : 'Inactive'}
                    </Badge>
                 </TableCell>
                 <TableCell className="py-4 px-6 text-right">
                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" title="Set Default">
-                      <BadgeCheck className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:bg-slate-100">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+                      onClick={() => handleOpenDialog(tax)}
+                    >
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <DropdownMenu>
@@ -103,7 +201,7 @@ export default function TaxRatesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-32 rounded-xl">
-                        <DropdownMenuItem className="text-rose-600 py-2">Delete Tax</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDelete(tax.id)} className="text-rose-600 py-2">Delete Tax</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -113,6 +211,55 @@ export default function TaxRatesPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-slate-800">
+              {editingRate ? "Edit Tax Rate" : "Add Tax Rate"}
+            </DialogTitle>
+            <DialogDescription>
+              Set name and percentage for this tax rule.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+             <div className="space-y-2">
+               <Label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Tax Name</Label>
+               <Input 
+                 placeholder="e.g. VAT 20%, GST 5%" 
+                 value={formData.name}
+                 onChange={e => setFormData({ ...formData, name: e.target.value })}
+                 className="rounded-xl bg-slate-50 border-none h-11"
+               />
+             </div>
+             <div className="space-y-2">
+               <Label className="text-[10px] uppercase font-bold text-slate-400 ml-1">Percentage Rate (%)</Label>
+               <Input 
+                 type="number"
+                 step="0.1"
+                 value={formData.rate}
+                 onChange={e => setFormData({ ...formData, rate: parseFloat(e.target.value) })}
+                 className="rounded-xl bg-slate-50 border-none h-11 font-mono font-bold"
+               />
+             </div>
+             <div className="flex items-center justify-between">
+               <div className="space-y-0.5">
+                  <Label className="text-sm font-bold text-slate-700">Active Status</Label>
+               </div>
+               <Switch 
+                 checked={formData.isActive}
+                 onCheckedChange={checked => setFormData({ ...formData, isActive: checked })}
+               />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-xl">Cancel</Button>
+            <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 shadow-lg shadow-blue-600/20">
+              {editingRate ? "Save Changes" : "Create Tax Rate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2,6 +2,13 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+
+// Backend imports
+import apiRoutes from "./backend/src/routes/index.js";
+import { errorMiddleware } from "./backend/src/middleware/error.middleware.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,25 +17,21 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Standard Middlewares
+  app.use(helmet({
+    contentSecurityPolicy: false, // Disable CSP for Vite dev mode compatibility
+  }));
+  app.use(cors());
+  app.use(morgan('dev'));
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
-  // API routes would go here
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok" });
-  });
+  // API Routes
+  app.use("/api", apiRoutes);
 
-  // Mock data for initial dashboard if needed
-  app.get("/api/dashboard-stats", (req, res) => {
-    res.json({
-      revenueMtd: 128450,
-      openInvoices: 12,
-      pipelineLeads: 45,
-      spendMtd: 24500,
-      apOutstanding: 15600,
-      lowStock: 8,
-      openTickets: 5,
-      expenses: 12400
-    });
+  // Health check (root)
+  app.get("/api/health-check", (req, res) => {
+    res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
   // Vite middleware for development
@@ -45,6 +48,9 @@ async function startServer() {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Error Handling (Must be after all routes)
+  app.use(errorMiddleware);
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
