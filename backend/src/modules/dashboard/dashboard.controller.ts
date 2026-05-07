@@ -20,12 +20,14 @@ export class DashboardController extends BaseController {
       lowStockCount,
       totalExpenses,
       totalAPOutstanding,
+      pendingTasks,
+      completedTasks,
     ] = await Promise.all([
       prisma.lead.count(),
       prisma.lead.count({
         where: {
           createdAt: {
-            gte: new Date(now.setHours(0,0,0,0))
+            gte: new Date(new Date().setHours(0,0,0,0))
           }
         }
       }),
@@ -65,7 +67,9 @@ export class DashboardController extends BaseController {
       prisma.purchaseOrder.aggregate({
         _sum: { amount: true },
         where: { status: 'Pending' }
-      })
+      }),
+      prisma.todo.count({ where: { status: { in: ['Pending', 'In Progress'] } } }),
+      prisma.todo.count({ where: { status: 'Completed' } }),
     ]);
 
     // Mock revenue growth for chart (normally would be aggregated query)
@@ -97,7 +101,9 @@ export class DashboardController extends BaseController {
         pendingRevenue: totalRevenuePending._sum.totalAmount || 0,
         expensesMTD: totalExpenses._sum.amount || 0,
         apOutstanding: totalAPOutstanding._sum.amount || 0,
-        spendMTD: (totalExpenses._sum.amount || 0) + (totalAPOutstanding._sum.amount || 0)
+        spendMTD: (totalExpenses._sum.amount || 0) + (totalAPOutstanding._sum.amount || 0),
+        pendingTasks,
+        completedTasks
       },
       revenueChart: mockRevenueData
     };

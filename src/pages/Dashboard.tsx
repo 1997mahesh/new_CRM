@@ -245,15 +245,15 @@ export function DashboardPage() {
       linkText: "Purchase dashboard →"
     },
     { 
-      title: "Spend MTD", 
-      value: `$${(stats.spendMTD || 0).toLocaleString()}`, 
-      change: "Cumulative spend", 
+      title: "Pending Tasks", 
+      value: stats.pendingTasks?.toString() || "0", 
+      change: `${stats.completedTasks || 0} COMPLETED`, 
       trend: "up", 
-      icon: Clock, 
-      color: "text-slate-600", 
-      bg: "bg-slate-50",
-      link: "/finance/dashboard",
-      linkText: "Finance dashboard →"
+      icon: FileCheck, 
+      color: "text-emerald-600", 
+      bg: "bg-emerald-50",
+      link: "/crm/todos",
+      linkText: "Tasks dashboard →"
     },
   ];
 

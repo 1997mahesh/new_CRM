@@ -25,8 +25,37 @@ model User {
   auditLogs     AuditLog[]
   assignedLeads Lead[]
   assignedTickets Ticket[]
+  todos         Todo[]    @relation("TodoAssignees")
 
   @@map("users")
+}
+
+model TodoGroup {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  color       String?  @default("blue")
+  todos       Todo[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("todo_groups")
+}
+
+model Todo {
+  id          String    @id @default(uuid())
+  title       String
+  description String?   @db.Text
+  priority    String    @default("Medium") // Low, Medium, High, Urgent
+  status      String    @default("Pending") // Pending, In Progress, Completed, Cancelled
+  dueDate     DateTime?
+  groupId     String?
+  group       TodoGroup? @relation(fields: [groupId], references: [id])
+  assignees   User[]    @relation("TodoAssignees")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("todos")
 }
 
 model Role {

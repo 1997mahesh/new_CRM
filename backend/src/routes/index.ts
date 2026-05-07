@@ -24,11 +24,15 @@ import ticketsRoutes from '../modules/support/tickets.routes.js';
 import dashboardRoutes from '../modules/dashboard/dashboard.routes.js';
 import userRoutes from '../modules/users/users.routes.js';
 import crmRoutes from '../modules/system/crm.routes.js';
+import todoRoutes from '../modules/todos/todos.routes.js';
+import todoGroupRoutes from '../modules/todo-groups/todo-groups.routes.js';
 
 router.use('/auth', authRoutes);
 router.use('/roles', roleRoutes);
 router.use('/users', userRoutes);
 router.use('/crm', crmRoutes);
+router.use('/todos', todoRoutes);
+router.use('/todo-groups', todoGroupRoutes);
 router.use('/permissions', permissionRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/expenses', expenseRoutes);
