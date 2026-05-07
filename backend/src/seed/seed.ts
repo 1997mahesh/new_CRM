@@ -83,7 +83,9 @@ async function main() {
       password: hashedPassword,
       firstName: 'System',
       lastName: 'Admin',
-      roleId: adminRole.id,
+      roles: {
+        connect: [{ id: adminRole.id }]
+      },
     },
   });
 

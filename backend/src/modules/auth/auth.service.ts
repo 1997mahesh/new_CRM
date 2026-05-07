@@ -8,7 +8,7 @@ export class AuthService {
   async login(email: string, password: string, ipAddress?: string) {
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { role: true },
+      include: { roles: true },
     });
 
     if (!user || user.isActive === false) {
@@ -23,7 +23,7 @@ export class AuthService {
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role.name },
+      { id: user.id, email: user.email, roles: user.roles.map(r => r.name) },
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn as any }
     );
@@ -45,7 +45,7 @@ export class AuthService {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          role: user.role.name,
+          roles: user.roles.map(r => r.name),
         },
       },
     };
@@ -64,7 +64,7 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { role: true },
+      include: { roles: true },
     });
     return user;
   }

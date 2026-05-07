@@ -11,23 +11,77 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  password      String
-  firstName     String?
-  lastName      String?
-  roleId        String
-  role          Role      @relation(fields: [roleId], references: [id])
-  lastLogin     DateTime?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  auditLogs     AuditLog[]
-  assignedLeads Lead[]
-  assignedTickets Ticket[]
-  todos         Todo[]    @relation("TodoAssignees")
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  password           String
+  firstName          String?
+  lastName           String?
+  employeeCode       String?   @unique
+  mobile             String?
+  designation        String?
+  departmentId       String?
+  department         Department? @relation(fields: [departmentId], references: [id])
+  roles              Role[]
+  reportingManagerId String?
+  reportingManager   User?     @relation("ManagerToSubordinates", fields: [reportingManagerId], references: [id])
+  subordinates       User[]    @relation("ManagerToSubordinates")
+  approverId         String?
+  approver           User?     @relation("ApproverToApprovees", fields: [approverId], references: [id])
+  approvees          User[]    @relation("ApproverToApprovees")
+  locationId         String?
+  location           Location?  @relation(fields: [locationId], references: [id])
+  loginAccess        Boolean   @default(true)
+  lastLogin          DateTime?
+  isActive           Boolean   @default(true)
+  status             String    @default("Active") // Active, Inactive
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  auditLogs          AuditLog[]
+  assignedLeads      Lead[]
+  assignedTickets    Ticket[]
+  todos              Todo[]    @relation("TodoAssignees")
 
   @@map("users")
+}
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("departments")
+}
+
+model Location {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  address     String?
+  isActive    Boolean          @default(true)
+  users       User[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("locations")
+}
+
+model UserInvitation {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String
+  departmentId String
+  roleId       String
+  token        String?  @unique
+  status       String   @default("Pending") // Pending, Accepted, Expired
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("user_invitations")
 }
 
 model TodoGroup {

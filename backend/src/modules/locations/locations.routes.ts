@@ -1,12 +1,11 @@
 import { Router } from 'express';
-import { UsersController } from './users.controller.js';
+import { LocationsController } from './locations.controller.js';
 
 const router = Router();
-const controller = new UsersController();
+const controller = new LocationsController();
 
 router.get('/', controller.getAll);
 router.post('/', controller.create);
-router.get('/:id', controller.getById);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.delete);
 

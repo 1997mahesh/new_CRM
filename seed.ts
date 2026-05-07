@@ -24,7 +24,9 @@ async function seed() {
       password: hashedPassword,
       firstName: 'System',
       lastName: 'Administrator',
-      roleId: adminRole.id
+      roles: {
+        connect: [{ id: adminRole.id }]
+      }
     }
   });
 

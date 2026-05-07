@@ -7,7 +7,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     email: string;
-    role: string;
+    roles: string[];
   };
 }
 
@@ -25,7 +25,7 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     req.user = {
       id: decoded.id,
       email: decoded.email,
-      role: decoded.role,
+      roles: decoded.roles || [],
     };
     next();
   } catch (error) {
@@ -45,7 +45,7 @@ export const checkPermissions = (requiredPermissions: string[]) => {
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         include: {
-          role: {
+          roles: {
             include: {
               permissions: {
                 include: {
@@ -61,7 +61,9 @@ export const checkPermissions = (requiredPermissions: string[]) => {
         return sendResponse(res, HttpStatus.UNAUTHORIZED, 'User not found');
       }
 
-      const userPermissions = user.role.permissions.map(rp => rp.permission.name);
+      const userPermissions = user.roles.flatMap(role => 
+        role.permissions.map(rp => rp.permission.name)
+      );
       const hasPermission = requiredPermissions.every(p => userPermissions.includes(p));
 
       if (!hasPermission) {
