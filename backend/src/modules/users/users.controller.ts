@@ -69,9 +69,17 @@ export class UsersController extends BaseController {
     const { password, roleIds, ...data } = req.body;
     const hashedPassword = await bcrypt.hash(password || 'Welcome@123', 10);
     
+    // Clean up empty strings or 'none' for relations
+    const cleanedData: any = { ...data };
+    ['departmentId', 'locationId', 'reportingManagerId', 'approverId'].forEach(field => {
+      if (cleanedData[field] === 'none' || cleanedData[field] === '') {
+        cleanedData[field] = null;
+      }
+    });
+
     return await prisma.user.create({
       data: {
-        ...data,
+        ...cleanedData,
         password: hashedPassword,
         roles: {
           connect: roleIds ? roleIds.map((id: string) => ({ id })) : []
@@ -82,9 +90,16 @@ export class UsersController extends BaseController {
   });
 
   update = this.handleRequest(async (req: Request) => {
-    const { password, roleIds, ...data } = req.body;
+    const { id, password, roleIds, ...data } = req.body;
     const updateData: any = { ...data };
     
+    // Clean up empty strings or 'none' for relations
+    ['departmentId', 'locationId', 'reportingManagerId', 'approverId'].forEach(field => {
+      if (updateData[field] === 'none' || updateData[field] === '') {
+        updateData[field] = null;
+      }
+    });
+
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
     }

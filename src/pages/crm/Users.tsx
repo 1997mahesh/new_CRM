@@ -96,6 +96,10 @@ export default function UsersPage() {
     return saved ? JSON.parse(saved) : ["name", "code", "email", "mobile", "designation", "status", "created"];
   });
 
+  useEffect(() => {
+    localStorage.setItem("user_table_columns", JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
   // Modals
   const [isNewUserModalOpen, setIsNewUserModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -104,6 +108,7 @@ export default function UsersPage() {
   
   // Form States
   const [userForm, setUserForm] = useState({
+    id: "" as string | undefined,
     firstName: "",
     lastName: "",
     email: "",
@@ -205,15 +210,25 @@ export default function UsersPage() {
       toast.error("Please fill required fields");
       return;
     }
+    
+    // Ensure we have an ID for update
+    const userId = userForm.id || editingUser?.id;
+    if (!userId) {
+      toast.error("User ID missing for update");
+      return;
+    }
+
     try {
-      const res = await api.put(`/users/${editingUser?.id}`, userForm);
+      // Use the specific user ID in the URL
+      const res = await api.put(`/users/${userId}`, userForm);
       if (res.success) {
         toast.success("User updated successfully");
         setIsEditModalOpen(false);
         fetchUsers();
         setEditingUser(null);
+        resetUserForm();
       } else {
-        toast.error(res.error || "Failed to update user");
+        toast.error(res.error || res.message || "Failed to update user");
       }
     } catch (error: any) {
       toast.error(error.message || "Error updating user");
@@ -254,6 +269,7 @@ export default function UsersPage() {
 
   const resetUserForm = () => {
     setUserForm({
+      id: "",
       firstName: "",
       lastName: "",
       email: "",
@@ -274,6 +290,7 @@ export default function UsersPage() {
   const openEditModal = (user: User) => {
     setEditingUser(user);
     setUserForm({
+      id: user.id,
       firstName: user.firstName,
       lastName: user.lastName || "",
       email: user.email,
@@ -284,7 +301,7 @@ export default function UsersPage() {
       departmentId: user.department?.id || "",
       locationId: user.location?.id || "",
       reportingManagerId: user.reportingManager?.id || "",
-      approverId: (user as any).approverId || "",
+      approverId: (user as any).approver?.id || "",
       status: user.status,
       loginAccess: (user as any).loginAccess ?? true,
       roleIds: user.roles.map(r => r.id)
@@ -409,8 +426,9 @@ export default function UsersPage() {
                 </Button>
               }
             />
-            <DialogContent className="max-w-2xl rounded-3xl dark:bg-[#1a1619] dark:border-white/5 overflow-hidden p-0">
+            <DialogContent showCloseButton={false} className="sm:max-w-none w-[92vw] lg:w-[980px] h-[90vh] max-h-[820px] rounded-2xl dark:bg-[#1a1619] dark:border-white/5 overflow-hidden p-0 flex flex-col border-none shadow-2xl">
                <UserForm 
+                mode="create"
                 title="Create New User" 
                 formData={userForm} 
                 setFormData={setUserForm} 
@@ -424,9 +442,16 @@ export default function UsersPage() {
             </DialogContent>
           </Dialog>
           
-          <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogContent className="max-w-2xl rounded-3xl dark:bg-[#1a1619] dark:border-white/5 overflow-hidden p-0">
+          <Dialog open={isEditModalOpen} onOpenChange={(open) => {
+            setIsEditModalOpen(open);
+            if (!open) {
+              setEditingUser(null);
+              resetUserForm();
+            }
+          }}>
+            <DialogContent showCloseButton={false} className="sm:max-w-none w-[92vw] lg:w-[980px] h-[90vh] max-h-[820px] rounded-2xl dark:bg-[#1a1619] dark:border-white/5 overflow-hidden p-0 flex flex-col border-none shadow-2xl">
                <UserForm 
+                mode="edit"
                 title="Edit User" 
                 formData={userForm} 
                 setFormData={setUserForm} 
@@ -712,6 +737,7 @@ export default function UsersPage() {
 }
 
 function UserForm({ 
+  mode = "create",
   title, 
   formData, 
   setFormData, 
@@ -722,6 +748,7 @@ function UserForm({
   onCancel,
   allUsers
 }: { 
+  mode?: "create" | "edit";
   title: string;
   formData: any;
   setFormData: any;
@@ -733,215 +760,246 @@ function UserForm({
   allUsers: any[];
 }) {
   return (
-    <div className="flex flex-col h-full max-h-[95vh]">
-      <div className="px-8 py-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-white dark:bg-[#1a1619] sticky top-0 z-10">
-        <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+    <div className="flex flex-col h-full w-full bg-white dark:bg-[#1a1619] overflow-hidden">
+      {/* modal-header */}
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between shrink-0 bg-white">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h2>
+          <p className="text-slate-500 text-[11px] font-medium mt-1">Configure user profile and organizational access.</p>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={onCancel} 
+          className="h-8 w-8 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 border border-slate-200 dark:border-white/10 rounded-full transition-all"
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
-      <ScrollArea className="flex-1 px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Basic Identity</h3>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500">First Name *</Label>
-                <Input 
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  placeholder="John" 
-                  className="rounded-xl h-11"
-                />
+      {/* modal-body */}
+      <div className="flex-1 overflow-hidden min-h-0">
+        <ScrollArea className="h-full">
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+              
+              {/* ROW 1: Name | Employee Code */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Name *</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input 
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    placeholder="First Name" 
+                    className="h-11 rounded-md border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500/10"
+                  />
+                  <Input 
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    placeholder="Last Name" 
+                    className="h-11 rounded-md border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500/10"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500">Last Name</Label>
-                <Input 
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  placeholder="Doe" 
-                  className="rounded-xl h-11"
-                />
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-500">Email Address *</Label>
-              <Input 
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="john.doe@company.com" 
-                className="rounded-xl h-11"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500">Employee Code *</Label>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Employee Code *</Label>
                 <Input 
                   value={formData.employeeCode}
                   onChange={(e) => setFormData({ ...formData, employeeCode: e.target.value })}
-                  placeholder="EMP001" 
-                  className="rounded-xl h-11"
+                  placeholder="EMP-CODE" 
+                  className="h-11 rounded-md border-slate-200 dark:border-white/10 font-mono uppercase text-sm px-4 focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500">Mobile Number</Label>
+
+              {/* ROW 2: Email | Mobile */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Email Address *</Label>
+                <Input 
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="example@company.com" 
+                  className="h-11 rounded-md border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500/10"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mobile Number</Label>
                 <Input 
                   value={formData.mobile}
                   onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  placeholder="+1 (555) 000-0000" 
-                  className="rounded-xl h-11"
+                  placeholder="+91 XXXXX XXXXX" 
+                  className="h-11 rounded-md border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
-            </div>
 
-            {!formData.id && (
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500">Password</Label>
+              {/* ROW 3: Password (full width) */}
+              {!formData.id && (
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Security Password *</Label>
+                  <div className="relative group">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input 
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Enter account password" 
+                      className="h-11 rounded-md border-slate-200 dark:border-white/10 pl-10 focus:ring-2 focus:ring-blue-500/10"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ROW 4: Designation | Department */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Designation</Label>
                 <Input 
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  placeholder="Enter initial password" 
-                  className="rounded-xl h-11"
+                  value={formData.designation}
+                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                  placeholder="e.g. Project Lead" 
+                  className="h-11 rounded-md border-slate-200 dark:border-white/10 focus:ring-2 focus:ring-blue-500/10"
                 />
               </div>
-            )}
-          </div>
 
-          <div className="space-y-4">
-            <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Position & Access</h3>
-            
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-500">Designation</Label>
-              <Input 
-                value={formData.designation}
-                onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
-                placeholder="e.g. Sales Manager" 
-                className="rounded-xl h-11"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500">Department</Label>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Department</Label>
                 <Select value={formData.departmentId} onValueChange={(val) => setFormData({ ...formData, departmentId: val })}>
-                  <SelectTrigger className="rounded-xl h-11">
-                    <SelectValue placeholder="Select..." />
+                  <SelectTrigger className="h-11 rounded-md border-slate-200 dark:border-white/10 bg-white">
+                    <SelectValue placeholder="Select Dept." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
                     {departments.map(d => (
                       <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500">Location</Label>
-                <Select value={formData.locationId} onValueChange={(val) => setFormData({ ...formData, locationId: val })}>
-                  <SelectTrigger className="rounded-xl h-11">
-                    <SelectValue placeholder="Select..." />
+
+              {/* ROW 5: Reporting Manager | Approver */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Reporting Manager</Label>
+                <Select value={formData.reportingManagerId} onValueChange={(val) => setFormData({ ...formData, reportingManagerId: val })}>
+                  <SelectTrigger className="h-11 rounded-md border-slate-200 dark:border-white/10 bg-white">
+                    <SelectValue placeholder="Select Head" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {allUsers.filter(u => u.id !== formData.id).map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Approver</Label>
+                <Select value={formData.approverId} onValueChange={(val) => setFormData({ ...formData, approverId: val })}>
+                  <SelectTrigger className="h-11 rounded-md border-slate-200 dark:border-white/10 bg-white">
+                    <SelectValue placeholder="Select Auth" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {allUsers.filter(u => u.id !== formData.id).map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* ROW 6: Sitting Location | Status */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Sitting Location</Label>
+                <Select value={formData.locationId} onValueChange={(val) => setFormData({ ...formData, locationId: val })}>
+                  <SelectTrigger className="h-11 rounded-md border-slate-200 dark:border-white/10 bg-white">
+                    <SelectValue placeholder="Select Loc." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
                     {locations.map(l => (
                       <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Status & Access</Label>
+                <div className="flex items-center gap-4 h-11 px-4 border border-slate-200 dark:border-white/10 rounded-md bg-slate-50/30">
+                  <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
+                    <SelectTrigger className="h-8 border-none bg-transparent shadow-none p-0 focus:ring-0 font-bold min-w-[70px]">
+                      <div className="flex items-center gap-2">
+                         <div className={cn("h-1.5 w-1.5 rounded-full", formData.status === "Active" ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]")} />
+                         <SelectValue />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="h-4 w-px bg-slate-200 dark:bg-white/10" />
+                  <div className="flex items-center gap-2">
+                    <Checkbox 
+                      checked={formData.loginAccess}
+                      onCheckedChange={(checked) => setFormData({ ...formData, loginAccess: !!checked })}
+                      id="allow-login"
+                      className="h-4 w-4 rounded"
+                    />
+                    <Label htmlFor="allow-login" className="text-[11px] font-bold text-slate-600 cursor-pointer">Login Access</Label>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-500">Reporting Manager</Label>
-              <Select value={formData.reportingManagerId} onValueChange={(val) => setFormData({ ...formData, reportingManagerId: val })}>
-                <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue placeholder="Select manager..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {allUsers.filter(u => u.id !== formData.id).map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.firstName} {u.lastName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
-               <div className="space-y-0.5">
-                  <Label className="text-xs font-bold">Login Access</Label>
-                  <p className="text-[10px] text-slate-500">Enable system login</p>
-               </div>
-               <Checkbox 
-                checked={formData.loginAccess}
-                onCheckedChange={(checked) => setFormData({ ...formData, loginAccess: checked })}
-               />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-bold text-slate-500">Status</Label>
-              <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
-                <SelectTrigger className="rounded-xl h-11">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* ROW 7: Roles */}
+            <div className="pt-4 border-t border-slate-100 dark:border-white/5 space-y-3">
+              <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Access Roles</h3>
+              <div className="flex flex-wrap gap-2">
+                {roles.map((role) => {
+                  const isSelected = formData.roleIds.includes(role.id);
+                  return (
+                    <button
+                      key={role.id}
+                      type="button"
+                      onClick={() => {
+                        const next = isSelected
+                          ? formData.roleIds.filter((id: string) => id !== role.id)
+                          : [...formData.roleIds, role.id];
+                        setFormData({ ...formData, roleIds: next });
+                      }}
+                      className={cn(
+                        "px-4 py-2 rounded-full text-[11px] font-bold uppercase tracking-tight transition-all border-2 flex items-center gap-2",
+                        isSelected 
+                          ? "bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-500/10 translate-y-[-1px]" 
+                          : "bg-white border-slate-200 text-slate-500 hover:border-blue-200 dark:bg-transparent dark:border-white/10"
+                      )}
+                    >
+                      {role.name}
+                      {isSelected && <Check className="h-3 w-3 stroke-[4]" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
+        </ScrollArea>
+      </div>
 
-        <div className="mt-8 space-y-4">
-           <div className="flex items-center justify-between">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Assigned Roles</h3>
-              <Badge variant="outline" className="bg-amber-50 text-amber-600 dark:bg-amber-600/10 dark:text-amber-400 border-none px-2 py-0">
-                {formData.roleIds.length} Selected
-              </Badge>
-           </div>
-           
-           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {roles.map(role => (
-                <div 
-                  key={role.id}
-                  onClick={() => {
-                    const exists = formData.roleIds.includes(role.id);
-                    const next = exists 
-                      ? formData.roleIds.filter((id: string) => id !== role.id)
-                      : [...formData.roleIds, role.id];
-                    setFormData({ ...formData, roleIds: next });
-                  }}
-                  className={cn(
-                    "p-3 rounded-xl border flex items-center gap-2 cursor-pointer transition-all",
-                    formData.roleIds.includes(role.id)
-                      ? "bg-amber-50 border-amber-200 dark:bg-amber-600/10 dark:border-amber-500/50"
-                      : "bg-white dark:bg-transparent border-slate-100 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20"
-                  )}
-                >
-                  <div className={cn(
-                    "h-4 w-4 rounded-full border flex items-center justify-center shrink-0",
-                    formData.roleIds.includes(role.id) ? "bg-amber-500 border-amber-500 text-white" : "border-slate-300"
-                  )}>
-                    {formData.roleIds.includes(role.id) && <Check className="h-2.5 w-2.5" />}
-                  </div>
-                  <span className={cn(
-                    "text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis",
-                    formData.roleIds.includes(role.id) ? "text-amber-700 dark:text-amber-400" : "text-slate-600 dark:text-slate-400"
-                  )}>
-                    {role.name}
-                  </span>
-                </div>
-              ))}
-           </div>
-        </div>
-      </ScrollArea>
-
-      <div className="p-6 border-t border-slate-100 dark:border-white/5 flex items-center justify-end gap-3 bg-slate-50/50 dark:bg-white/[0.02]">
-        <Button variant="ghost" onClick={onCancel} className="rounded-xl h-11 px-6 font-bold">
+      {/* modal-footer */}
+      <div className="px-6 py-5 border-t border-slate-100 dark:border-white/5 bg-white dark:bg-[#1a1619] flex items-center justify-end gap-3 shrink-0 relative z-10">
+        <Button 
+          variant="outline" 
+          onClick={onCancel} 
+          className="h-11 px-6 rounded-lg font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+        >
           Cancel
         </Button>
-        <Button onClick={onSave} className="rounded-xl h-11 px-10 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-premium">
-          {formData.id ? "Update User" : "Create User"}
+        <Button 
+          onClick={onSave} 
+          className="h-11 px-8 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/10 transition-all active:scale-[0.98]"
+        >
+          {mode === 'edit' ? 'Update User' : 'Create User'}
         </Button>
       </div>
     </div>

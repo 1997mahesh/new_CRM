@@ -23,7 +23,9 @@ export const api = {
         'Authorization': `Bearer ${token}`,
       },
     });
-    return response.json();
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : { success: response.ok };
   },
   post: async (path: string, data: any) => {
     const token = localStorage.getItem('token');
@@ -35,7 +37,9 @@ export const api = {
       },
       body: JSON.stringify(data),
     });
-    return response.json();
+    
+    const text = await response.text();
+    return text ? JSON.parse(text) : { success: response.ok };
   },
   put: async (path: string, data: any) => {
     const token = localStorage.getItem('token');
@@ -47,7 +51,9 @@ export const api = {
       },
       body: JSON.stringify(data),
     });
-    return response.json();
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : { success: response.ok };
   },
   patch: async (path: string, data: any) => {
     const token = localStorage.getItem('token');
@@ -59,7 +65,9 @@ export const api = {
       },
       body: JSON.stringify(data),
     });
-    return response.json();
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : { success: response.ok };
   },
   delete: async (path: string) => {
     const token = localStorage.getItem('token');
@@ -69,6 +77,8 @@ export const api = {
         'Authorization': `Bearer ${token}`,
       },
     });
-    return response.json();
+
+    const text = await response.text();
+    return text ? JSON.parse(text) : { success: response.ok };
   },
 };
