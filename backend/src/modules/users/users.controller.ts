@@ -66,7 +66,7 @@ export class UsersController extends BaseController {
   });
 
   create = this.handleRequest(async (req: Request) => {
-    const { password, roleIds, ...data } = req.body;
+    const { id, password, roleIds, ...data } = req.body;
     const hashedPassword = await bcrypt.hash(password || 'Welcome@123', 10);
     
     // Clean up empty strings or 'none' for relations

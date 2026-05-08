@@ -78,6 +78,7 @@ type User = {
 
 export default function UsersPage() {
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -101,9 +102,9 @@ export default function UsersPage() {
   }, [visibleColumns]);
 
   // Modals
-  const [isNewUserModalOpen, setIsNewUserModalOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [editingUser, setEditingUser] = useState<User | null>(null);
   
   // Form States
@@ -134,7 +135,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     fetchMetadata();
-    fetchUsers();
+    fetchUsers(true);
   }, [statusFilter, roleFilter, deptFilter, locFilter]);
 
   useEffect(() => {
@@ -143,10 +144,6 @@ export default function UsersPage() {
     }, 500); // Debounce search
     return () => clearTimeout(timer);
   }, [search]);
-
-  useEffect(() => {
-    localStorage.setItem("user_table_columns", JSON.stringify(visibleColumns));
-  }, [visibleColumns]);
 
   const fetchMetadata = async () => {
     try {
@@ -163,8 +160,8 @@ export default function UsersPage() {
     }
   };
 
-  const fetchUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     try {
       const params: any = { search };
       if (statusFilter) params.status = statusFilter;
@@ -181,7 +178,7 @@ export default function UsersPage() {
     } catch (error) {
       toast.error("Failed to fetch users");
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   };
 
@@ -190,18 +187,24 @@ export default function UsersPage() {
       toast.error("Please fill required fields");
       return;
     }
+    setSubmitting(true);
     try {
       const res = await api.post("/users", userForm);
       if (res.success) {
         toast.success("User created successfully");
-        setIsNewUserModalOpen(false);
-        fetchUsers();
-        resetUserForm();
+        // refresh table
+        await fetchUsers(false);
+        // IMPORTANT
+        handleCloseModal();
       } else {
-        toast.error(res.error || "Failed to create user");
+        toast.error(res.error || res.message || "Failed to create user");
       }
     } catch (error: any) {
+      console.error(error);
       toast.error(error.message || "Error creating user");
+    } finally {
+      // VERY IMPORTANT
+      setSubmitting(false);
     }
   };
 
@@ -218,20 +221,25 @@ export default function UsersPage() {
       return;
     }
 
+    setSubmitting(true);
     try {
       // Use the specific user ID in the URL
       const res = await api.put(`/users/${userId}`, userForm);
       if (res.success) {
         toast.success("User updated successfully");
-        setIsEditModalOpen(false);
-        fetchUsers();
-        setEditingUser(null);
-        resetUserForm();
+        // refresh table
+        await fetchUsers(false);
+        // IMPORTANT
+        handleCloseModal();
       } else {
         toast.error(res.error || res.message || "Failed to update user");
       }
     } catch (error: any) {
+      console.error(error);
       toast.error(error.message || "Error updating user");
+    } finally {
+      // VERY IMPORTANT
+      setSubmitting(false);
     }
   };
 
@@ -287,6 +295,13 @@ export default function UsersPage() {
     });
   };
 
+  const openCreateModal = () => {
+    resetUserForm();
+    setModalMode("create");
+    setEditingUser(null);
+    setIsUserModalOpen(true);
+  };
+
   const openEditModal = (user: User) => {
     setEditingUser(user);
     setUserForm({
@@ -306,7 +321,23 @@ export default function UsersPage() {
       loginAccess: (user as any).loginAccess ?? true,
       roleIds: user.roles.map(r => r.id)
     });
-    setIsEditModalOpen(true);
+    setModalMode("edit");
+    setIsUserModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsUserModalOpen(false);
+    
+    // Immediate cleanup of potential stuck styles and state
+    document.body.style.overflow = 'auto';
+    document.body.style.pointerEvents = 'auto';
+    
+    // Delay clearing everything until after the animation would typically finish
+    setTimeout(() => {
+      setEditingUser(null);
+      setSubmitting(false); 
+      resetUserForm();
+    }, 300);
   };
 
   const columns = [
@@ -414,53 +445,33 @@ export default function UsersPage() {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={isNewUserModalOpen} onOpenChange={(open) => {
-            setIsNewUserModalOpen(open);
-            if (!open) resetUserForm();
+          <Dialog open={isUserModalOpen} onOpenChange={(open) => {
+            if (!open) handleCloseModal();
           }}>
             <DialogTrigger
               render={
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-lg shadow-premium gap-2">
+                <Button onClick={openCreateModal} className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-lg shadow-premium gap-2">
                   <Plus className="h-4 w-4" />
                   <span>New User</span>
                 </Button>
               }
             />
-            <DialogContent showCloseButton={false} className="sm:max-w-none w-[92vw] lg:w-[980px] h-[90vh] max-h-[820px] rounded-2xl dark:bg-[#1a1619] dark:border-white/5 overflow-hidden p-0 flex flex-col border-none shadow-2xl">
+            <DialogContent 
+              showCloseButton={false} 
+              className="sm:max-w-none w-[92vw] lg:w-[980px] h-[90vh] max-h-[820px] rounded-2xl dark:bg-[#1a1619] dark:border-white/5 overflow-hidden p-0 flex flex-col border-none shadow-2xl z-[100]"
+            >
                <UserForm 
-                mode="create"
-                title="Create New User" 
+                mode={modalMode}
+                title={modalMode === 'create' ? "Create New User" : "Edit User"} 
                 formData={userForm} 
                 setFormData={setUserForm} 
                 roles={roles} 
                 departments={departments} 
                 locations={locations}
-                onSave={handleCreateUser}
+                onSave={modalMode === 'create' ? handleCreateUser : handleUpdateUser}
                 allUsers={users}
-                onCancel={() => setIsNewUserModalOpen(false)}
-               />
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isEditModalOpen} onOpenChange={(open) => {
-            setIsEditModalOpen(open);
-            if (!open) {
-              setEditingUser(null);
-              resetUserForm();
-            }
-          }}>
-            <DialogContent showCloseButton={false} className="sm:max-w-none w-[92vw] lg:w-[980px] h-[90vh] max-h-[820px] rounded-2xl dark:bg-[#1a1619] dark:border-white/5 overflow-hidden p-0 flex flex-col border-none shadow-2xl">
-               <UserForm 
-                mode="edit"
-                title="Edit User" 
-                formData={userForm} 
-                setFormData={setUserForm} 
-                roles={roles} 
-                departments={departments} 
-                locations={locations}
-                onSave={handleUpdateUser}
-                allUsers={users}
-                onCancel={() => setIsEditModalOpen(false)}
+                onCancel={handleCloseModal}
+                submitting={submitting}
                />
             </DialogContent>
           </Dialog>
@@ -746,7 +757,8 @@ function UserForm({
   locations,
   onSave,
   onCancel,
-  allUsers
+  allUsers,
+  submitting
 }: { 
   mode?: "create" | "edit";
   title: string;
@@ -758,11 +770,12 @@ function UserForm({
   onSave: () => void;
   onCancel: () => void;
   allUsers: any[];
+  submitting?: boolean;
 }) {
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-[#1a1619] overflow-hidden">
       {/* modal-header */}
-      <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between shrink-0 bg-white">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between shrink-0 bg-white dark:bg-[#1a1619]">
         <div>
           <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">{title}</h2>
           <p className="text-slate-500 text-[11px] font-medium mt-1">Configure user profile and organizational access.</p>
@@ -987,7 +1000,7 @@ function UserForm({
       </div>
 
       {/* modal-footer */}
-      <div className="px-6 py-5 border-t border-slate-100 dark:border-white/5 bg-white dark:bg-[#1a1619] flex items-center justify-end gap-3 shrink-0 relative z-10">
+      <div className="px-6 py-5 border-t border-slate-100 dark:border-white/5 bg-white dark:bg-[#1a1619] flex items-center justify-end gap-3 shrink-0 relative z-[20]">
         <Button 
           variant="outline" 
           onClick={onCancel} 
@@ -997,9 +1010,17 @@ function UserForm({
         </Button>
         <Button 
           onClick={onSave} 
-          className="h-11 px-8 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/10 transition-all active:scale-[0.98]"
+          disabled={submitting}
+          className="h-11 px-8 rounded-lg font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-600/10 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {mode === 'edit' ? 'Update User' : 'Create User'}
+          {submitting ? (
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>{mode === 'edit' ? 'Updating...' : 'Creating...'}</span>
+            </div>
+          ) : (
+            mode === 'edit' ? 'Update User' : 'Create User'
+          )}
         </Button>
       </div>
     </div>

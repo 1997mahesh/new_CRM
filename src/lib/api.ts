@@ -25,7 +25,12 @@ export const api = {
     });
 
     const text = await response.text();
-    return text ? JSON.parse(text) : { success: response.ok };
+    try {
+      return text ? JSON.parse(text) : { success: response.ok };
+    } catch (e) {
+      console.error('JSON Parse Error:', e, 'Text:', text);
+      return { success: response.ok, message: 'Invalid response format' };
+    }
   },
   post: async (path: string, data: any) => {
     const token = localStorage.getItem('token');
@@ -39,7 +44,12 @@ export const api = {
     });
     
     const text = await response.text();
-    return text ? JSON.parse(text) : { success: response.ok };
+    try {
+      return text ? JSON.parse(text) : { success: response.ok };
+    } catch (e) {
+      console.error('JSON Parse Error:', e, 'Text:', text);
+      return { success: response.ok, message: 'Invalid response format' };
+    }
   },
   put: async (path: string, data: any) => {
     const token = localStorage.getItem('token');
@@ -53,7 +63,12 @@ export const api = {
     });
 
     const text = await response.text();
-    return text ? JSON.parse(text) : { success: response.ok };
+    try {
+      return text ? JSON.parse(text) : { success: response.ok };
+    } catch (e) {
+      console.error('JSON Parse Error:', e, 'Text:', text);
+      return { success: response.ok, message: 'Invalid response format' };
+    }
   },
   patch: async (path: string, data: any) => {
     const token = localStorage.getItem('token');
@@ -67,7 +82,12 @@ export const api = {
     });
 
     const text = await response.text();
-    return text ? JSON.parse(text) : { success: response.ok };
+    try {
+      return text ? JSON.parse(text) : { success: response.ok };
+    } catch (e) {
+      console.error('JSON Parse Error:', e, 'Text:', text);
+      return { success: response.ok, message: 'Invalid response format' };
+    }
   },
   delete: async (path: string) => {
     const token = localStorage.getItem('token');
@@ -79,6 +99,11 @@ export const api = {
     });
 
     const text = await response.text();
-    return text ? JSON.parse(text) : { success: response.ok };
+    try {
+      return text ? JSON.parse(text) : { success: response.ok };
+    } catch (e) {
+      console.error('JSON Parse Error:', e, 'Text:', text);
+      return { success: response.ok, message: 'Invalid response format' };
+    }
   },
 };
