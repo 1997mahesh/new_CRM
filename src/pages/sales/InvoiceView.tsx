@@ -98,7 +98,7 @@ export function InvoiceViewPage() {
   const voidInvoice = async () => {
     if (!window.confirm("Are you sure you want to void this invoice?")) return;
     try {
-      const res = await api.post(`/invoices/void`, { invoiceId: id });
+      const res = await api.post(`/invoices/${id}/void`);
       if (res.success) {
         toast.success("Invoice voided successfully");
         fetchInvoice();
@@ -110,7 +110,7 @@ export function InvoiceViewPage() {
 
   const duplicateInvoice = async () => {
     try {
-      const res = await api.post(`/invoices/duplicate`, { invoiceId: id });
+      const res = await api.post(`/invoices/${id}/duplicate`);
       if (res.success) {
         toast.success("Invoice duplicated as draft");
         navigate(`/sales/invoices/${res.data.id}/edit`);

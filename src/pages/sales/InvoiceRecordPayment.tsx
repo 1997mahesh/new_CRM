@@ -52,18 +52,13 @@ export function InvoiceRecordPaymentPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [invRes, payRes] = await Promise.all([
-          api.get(`/invoices/${id}`),
-          api.get(`/payments?invoiceId=${id}`)
-        ]);
+        const res = await api.get(`/invoices/${id}`);
         
-        if (invRes.success) {
-          setInvoice(invRes.data);
+        if (res.success) {
+          setInvoice(res.data);
           // Set initial amount to balance if it's the first time
-          setPaymentData(prev => ({ ...prev, amount: invRes.data.balance || 0 }));
-        }
-        if (payRes.success) {
-          setPaymentHistory(payRes.data.items || []);
+          setPaymentData(prev => ({ ...prev, amount: res.data.balance || 0 }));
+          setPaymentHistory(res.data.payments || []);
         }
       } catch (error) {
         toast.error("Failed to load invoice details");
