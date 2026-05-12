@@ -155,7 +155,7 @@ export function InvoicesPage() {
                   </div>
                 </TableCell>
                 <TableCell className="py-4 px-6 font-bold text-slate-800 text-sm">
-                  ${invoice.amount.toLocaleString()}
+                  ${(invoice.amount || 0).toLocaleString()}
                 </TableCell>
                 <TableCell className="py-4 px-6 text-right">
                   <DropdownMenu>

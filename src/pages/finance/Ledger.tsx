@@ -143,21 +143,21 @@ export default function LedgerPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <SummaryCard 
           title="Income (Period)" 
-          amount={`$${totalIncome.toLocaleString()}`} 
+          amount={`$${(totalIncome || 0).toLocaleString()}`} 
           icon={ArrowUpCircle} 
           color="emerald" 
           subtitle="Total credits in view"
         />
         <SummaryCard 
           title="Outgoing (Period)" 
-          amount={`$${totalExpense.toLocaleString()}`} 
+          amount={`$${(totalExpense || 0).toLocaleString()}`} 
           icon={ArrowDownCircle} 
           color="rose" 
           subtitle="Total debits in view"
         />
         <SummaryCard 
           title="Current Balance" 
-          amount={`$${currentBalance.toLocaleString()}`} 
+          amount={`$${(currentBalance || 0).toLocaleString()}`} 
           icon={Wallet} 
           color="blue" 
           subtitle="Real-time master balance"
@@ -211,10 +211,10 @@ export default function LedgerPage() {
                       "py-4 px-6 font-black text-sm",
                       item.credit > 0 ? "text-emerald-600" : "text-rose-600"
                     )}>
-                      {item.credit > 0 ? `+$${item.credit.toLocaleString()}` : `-$${item.debit.toLocaleString()}`}
+                      {item.credit > 0 ? `+$${(item.credit || 0).toLocaleString()}` : `-$${(item.debit || 0).toLocaleString()}`}
                     </TableCell>
                     <TableCell className="py-4 px-6 font-bold text-slate-800 text-sm">
-                       ${item.balance.toLocaleString()}
+                       ${(item.balance || 0).toLocaleString()}
                     </TableCell>
                   </TableRow>
                 ))

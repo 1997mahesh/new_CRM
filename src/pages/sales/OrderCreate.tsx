@@ -10,7 +10,8 @@ import {
   Calendar, 
   FileText,
   DollarSign,
-  Briefcase
+  Briefcase,
+  ShoppingCart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,24 +40,26 @@ interface LineItem {
   total: number;
 }
 
-export function QuotationCreatePage() {
+export default function OrderCreatePage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = !!id;
 
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [quotations, setQuotations] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     number: "",
     customerId: "",
     customerName: "",
+    quotationId: "",
     title: "",
     issueDate: new Date().toISOString().split('T')[0],
-    validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     status: "Draft",
     notes: "",
     discount: 0,
-    terms: "1. Validity: This quotation is valid for 14 days from the date of issue.\n2. Payment Terms: 50% advance, 50% upon completion.\n3. Delivery: As per project timeline discussed."
+    terms: "1. Payment: 50% advance, 50% on delivery.\n2. Delivery: Expected within 7 working days.\n3. Warranty: Standard manufacturer warranty applies."
   });
 
   const [items, setItems] = useState<LineItem[]>([
@@ -73,33 +76,36 @@ export function QuotationCreatePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [custRes, numRes] = await Promise.all([
+        const [custRes, quoteRes, numRes] = await Promise.all([
           api.get('/customers'),
-          api.get('/system/number-series/next/quotation')
+          api.get('/quotations?status=Accepted'),
+          api.get('/system/number-series/next/order')
         ]);
         
         if (custRes.success) setCustomers(custRes.data);
+        if (quoteRes.success) setQuotations(quoteRes.data.items || []);
         if (numRes.success && !isEdit) {
           setFormData(prev => ({ ...prev, number: numRes.data }));
         }
 
         if (isEdit) {
-          const res = await api.get(`/quotations/${id}`);
+          const res = await api.get(`/orders/${id}`);
           if (res.success) {
-            const q = res.data;
+            const o = res.data;
             setFormData({
-              number: q.number,
-              customerId: q.customerId,
-              customerName: q.customerName,
-              title: q.title || "",
-              issueDate: new Date(q.issueDate).toISOString().split('T')[0],
-              validUntil: new Date(q.validUntil).toISOString().split('T')[0],
-              status: q.status,
-              notes: q.notes || "",
-              discount: q.discount || 0,
-              terms: q.terms || ""
+              number: o.number,
+              customerId: o.customerId,
+              customerName: o.customerName,
+              quotationId: o.quotationId || "",
+              title: o.title || "",
+              issueDate: new Date(o.issueDate).toISOString().split('T')[0],
+              deliveryDate: o.deliveryDate ? new Date(o.deliveryDate).toISOString().split('T')[0] : "",
+              status: o.status,
+              notes: o.notes || "",
+              discount: o.discount || 0,
+              terms: o.terms || ""
             });
-            setItems(q.items || []);
+            setItems(o.items || []);
           }
         }
       } catch (err) {
@@ -117,7 +123,6 @@ export function QuotationCreatePage() {
     let subtotal = 0;
     let taxTotal = 0;
 
-    // Line items calculation
     items.forEach(item => {
       const itemSubtotal = item.quantity * item.unitPrice;
       const itemTax = itemSubtotal * (item.taxPercent / 100);
@@ -126,7 +131,6 @@ export function QuotationCreatePage() {
       taxTotal += itemTax;
     });
 
-    // Overall discount calculation
     let overallDiscount = formData.discount;
     if (overallDiscount > subtotal) overallDiscount = subtotal;
 
@@ -138,6 +142,23 @@ export function QuotationCreatePage() {
       discountAmount: overallDiscount,
       totalAmount: Math.max(0, finalTotal)
     });
+  };
+
+  const loadQuotation = async (quoteId: string) => {
+    const quote = quotations.find(q => q.id === quoteId);
+    if (quote) {
+      setFormData(prev => ({
+        ...prev,
+        quotationId: quoteId,
+        customerId: quote.customerId,
+        customerName: quote.customerName,
+        title: quote.title,
+        items: quote.items,
+        discount: quote.discount,
+        terms: quote.terms
+      }));
+      setItems(quote.items || []);
+    }
   };
 
   const addItem = () => {
@@ -157,7 +178,6 @@ export function QuotationCreatePage() {
     const newItems = items.map(item => {
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
-        // Recalculate item total
         const sub = updatedItem.quantity * updatedItem.unitPrice;
         const tax = sub * (updatedItem.taxPercent / 100);
         updatedItem.total = sub + tax;
@@ -184,15 +204,15 @@ export function QuotationCreatePage() {
       };
 
       const res = isEdit 
-        ? await api.put(`/quotations/${id}`, payload)
-        : await api.post('/quotations', payload);
+        ? await api.put(`/orders/${id}`, payload)
+        : await api.post('/orders', payload);
 
       if (res.success) {
-        toast.success(`Successfully ${isEdit ? 'updated' : 'created'} quotation ${formData.number}.`);
-        navigate('/sales/quotations');
+        toast.success(`Successfully ${isEdit ? 'updated' : 'created'} order ${formData.number}.`);
+        navigate('/sales/orders');
       }
     } catch (err) {
-      toast.error("Failed to save quotation. Please try again.");
+      toast.error("Failed to save order. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -206,16 +226,16 @@ export function QuotationCreatePage() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => navigate('/sales/quotations')}
+            onClick={() => navigate('/sales/orders')}
             className="rounded-xl border border-slate-200 dark:border-white/5"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-slate-800 dark:text-white uppercase tracking-tight italic">
-              {isEdit ? 'Edit' : 'New'} Quotation
+              {isEdit ? 'Edit' : 'New'} Sales Order
             </h1>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{formData.number || 'Generating number...'}</p>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{formData.number || 'Generating SO...'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -230,11 +250,11 @@ export function QuotationCreatePage() {
           </Button>
           <Button 
             className="rounded-xl font-bold uppercase text-[10px] tracking-widest px-6 h-11 bg-blue-600 hover:bg-blue-700 shadow-premium"
-            onClick={() => handleSubmit("Sent")}
+            onClick={() => handleSubmit("Confirmed")}
             disabled={loading}
           >
-            <Send className="h-4 w-4 mr-2" />
-            Save & Send
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Confirm Order
           </Button>
         </div>
       </div>
@@ -245,22 +265,38 @@ export function QuotationCreatePage() {
           <Card className="p-6 border-slate-200 dark:border-white/5 dark:bg-[#1C1F26] rounded-2xl shadow-soft">
             <div className="flex items-center gap-2 mb-6">
                <div className="h-8 w-1 bg-blue-500 rounded-full" />
-               <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Quotation Details</h2>
+               <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Order Information</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quotation Title</Label>
+              <div className="md:col-span-2 space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Order Title / Project</Label>
                 <div className="relative group">
                    <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                    <Input 
-                     placeholder="e.g. Website Redesign Project" 
+                     placeholder="e.g. Q2 Hardware Supply" 
                      className="pl-10 h-12 bg-slate-50 border-none dark:bg-white/5 focus-visible:ring-blue-500 rounded-xl font-medium"
                      value={formData.title}
                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                    />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quotation (Optional)</Label>
+                <Select value={formData.quotationId} onValueChange={loadQuotation}>
+                  <SelectTrigger className="h-12 bg-slate-50 border-none dark:bg-white/5 rounded-xl font-medium">
+                    <SelectValue placeholder="Link Quotation" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-[#1C1F26] border-slate-200 dark:border-white/10 rounded-xl">
+                    <SelectItem value="none">None</SelectItem>
+                    {quotations.map((q) => (
+                      <SelectItem key={q.id} value={q.id}>{q.number} - {q.customerName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Customer</Label>
                 <Select 
@@ -269,19 +305,21 @@ export function QuotationCreatePage() {
                     const cust = customers.find(c => c.id === val);
                     setFormData({ ...formData, customerId: val, customerName: cust?.name || "" });
                   }}
+                  disabled={!!formData.quotationId && formData.quotationId !== "none"}
                 >
                   <SelectTrigger className="h-12 bg-slate-50 border-none dark:bg-white/5 rounded-xl font-medium">
                     <SelectValue placeholder="Select Customer" />
                   </SelectTrigger>
                   <SelectContent className="dark:bg-[#1C1F26] border-slate-200 dark:border-white/10 rounded-xl">
                     {customers.map((c) => (
-                      <SelectItem key={c.id} value={c.id} className="font-medium hover:bg-slate-50 dark:hover:bg-white/5">{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Issue Date</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Order Date</Label>
                 <div className="relative group">
                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                    <Input 
@@ -293,14 +331,14 @@ export function QuotationCreatePage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Valid Until</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Expected Delivery</Label>
                 <div className="relative group">
                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                    <Input 
                      type="date" 
-                     className="pl-10 h-12 bg-slate-50 border-none dark:bg-white/5 focus-visible:ring-blue-500 rounded-xl font-medium border-red-200 dark:border-red-500/20"
-                     value={formData.validUntil}
-                     onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                     className="pl-10 h-12 bg-slate-50 border-none dark:bg-white/5 focus-visible:ring-blue-500 rounded-xl font-medium border-blue-100 dark:border-blue-500/20"
+                     value={formData.deliveryDate}
+                     onChange={(e) => setFormData({ ...formData, deliveryDate: e.target.value })}
                    />
                 </div>
               </div>
@@ -312,7 +350,7 @@ export function QuotationCreatePage() {
             <div className="flex items-center justify-between mb-6">
                <div className="flex items-center gap-2">
                  <div className="h-8 w-1 bg-emerald-500 rounded-full" />
-                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Line Items</h2>
+                 <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Order Line Items</h2>
                </div>
                <Button 
                 variant="outline" 
@@ -320,14 +358,14 @@ export function QuotationCreatePage() {
                 onClick={addItem}
                 className="rounded-xl h-9 font-bold bg-blue-50 text-blue-600 border-none hover:bg-blue-100 transition-colors"
               >
-                <Plus className="h-4 w-4 mr-1" /> Add Row
+                <Plus className="h-4 w-4 mr-1" /> Add Item
               </Button>
             </div>
 
             <div className="space-y-4">
                {/* Table Header */}
                <div className="hidden md:grid grid-cols-12 gap-4 px-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  <div className="col-span-5">Description</div>
+                  <div className="col-span-5">Product / Service Description</div>
                   <div className="col-span-1 text-center">Qty</div>
                   <div className="col-span-2">Unit Price</div>
                   <div className="col-span-1 text-center">Tax %</div>
@@ -336,7 +374,7 @@ export function QuotationCreatePage() {
                </div>
 
                <AnimatePresence initial={false}>
-                 {items.map((item, idx) => (
+                 {items.map((item) => (
                    <motion.div 
                      key={item.id}
                      initial={{ opacity: 0, y: -10 }}
@@ -346,7 +384,7 @@ export function QuotationCreatePage() {
                    >
                      <div className="col-span-5 relative group/input">
                         <Input 
-                          placeholder="Project Milestone 1..." 
+                          placeholder="Web Application Development..." 
                           className="h-11 bg-white dark:bg-[#1C1F26] border-none shadow-sm rounded-xl font-medium focus-visible:ring-blue-500"
                           value={item.description}
                           onChange={(e) => updateItem(item.id, "description", e.target.value)}
@@ -399,23 +437,22 @@ export function QuotationCreatePage() {
           </Card>
         </div>
 
-        {/* Totals Right */}
+        {/* Summary Right */}
         <div className="space-y-6">
           <Card className="p-6 border-slate-200 dark:border-white/5 dark:bg-[#252831] rounded-2xl shadow-xl overflow-hidden relative group">
-             <div className="absolute top-0 right-0 p-8 transform translate-x-12 -translate-y-12 bg-white/5 rounded-full" />
              <div className="relative flex items-center gap-2 mb-6">
                <div className="h-8 w-1 bg-amber-500 rounded-full" />
-               <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Summary</h2>
+               <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Order Summary</h2>
              </div>
 
               <div className="space-y-4 relative">
                 <div className="flex justify-between items-center pb-4 border-b border-white/5">
-                   <span className="text-xs font-bold text-slate-500 uppercase tracking-widest italic">Subtotal</span>
+                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">Subtotal</span>
                    <span className="text-sm font-bold text-slate-800 dark:text-white font-mono">${(totals.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
 
                 <div className="space-y-2 py-2 border-b border-white/5">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest italic">Discount</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest italic text-red-400">Discount Amount</span>
                   <div className="relative group">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                     <Input 
@@ -431,14 +468,14 @@ export function QuotationCreatePage() {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center py-2">
-                   <span className="text-xs font-bold text-slate-500 uppercase tracking-widest italic">Tax (VAT)</span>
+                <div className="flex justify-between items-center py-2 border-b border-white/5">
+                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">Tax Total</span>
                    <span className="text-sm font-bold text-emerald-400 font-mono">+${(totals.taxAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                 </div>
                 
-                <div className="mt-8 p-4 bg-blue-600 rounded-2xl shadow-lg transform transition-transform group-hover:scale-[1.02]">
-                   <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100 italic">Total Amount</span>
+                <div className="mt-8 p-6 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl shadow-lg transform transition-transform group-hover:scale-[1.02] border border-white/10">
+                   <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100 italic">Grand Total</span>
                       <Badge className="bg-white/20 text-white border-none text-[8px] uppercase tracking-tighter">USD</Badge>
                    </div>
                    <div className="text-3xl font-black text-white font-mono tracking-tighter italic">
@@ -451,15 +488,15 @@ export function QuotationCreatePage() {
           <Card className="p-6 border-slate-200 dark:border-white/5 dark:bg-[#1C1F26] rounded-2xl shadow-soft">
             <div className="flex items-center gap-2 mb-6">
                <div className="h-8 w-1 bg-slate-400 rounded-full" />
-               <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Additional Info</h2>
+               <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">Additional Notes</h2>
             </div>
             
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Customer Notes</Label>
                 <Textarea 
-                  placeholder="Thank you for your business..." 
-                  className="min-h-[100px] bg-slate-50 dark:bg-white/5 border-none rounded-xl font-medium text-sm p-4 h-24"
+                  placeholder="Additional order instructions..." 
+                  className="min-h-[100px] bg-slate-50 dark:bg-white/5 border-none rounded-xl font-medium text-sm p-4"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
@@ -467,7 +504,7 @@ export function QuotationCreatePage() {
               <div className="space-y-2">
                 <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Terms & Conditions</Label>
                 <Textarea 
-                  placeholder="Standard terms apply..." 
+                  placeholder="Order specific terms..." 
                   className="min-h-[120px] bg-slate-50 dark:bg-white/5 border-none rounded-xl font-medium text-sm p-4"
                   value={formData.terms}
                   onChange={(e) => setFormData({ ...formData, terms: e.target.value })}

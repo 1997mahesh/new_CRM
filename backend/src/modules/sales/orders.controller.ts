@@ -3,7 +3,7 @@ import { BaseController } from '../../controllers/base.controller.js';
 import prisma from '../../prisma/index.js';
 import { getAndIncrementNextNumber } from '../../utils/number-series.js';
 
-export class QuotationsController extends BaseController {
+export class OrdersController extends BaseController {
   getAll = this.handleRequest(async (req: Request) => {
     const { status, search, page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
@@ -21,13 +21,13 @@ export class QuotationsController extends BaseController {
     }
 
     const [items, total] = await Promise.all([
-      prisma.quotation.findMany({
+      prisma.order.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: Number(limit)
       }),
-      prisma.quotation.count({ where })
+      prisma.order.count({ where })
     ]);
 
     return {
@@ -42,25 +42,25 @@ export class QuotationsController extends BaseController {
   });
 
   getById = this.handleRequest(async (req: Request) => {
-    return await prisma.quotation.findUnique({
+    return await prisma.order.findUnique({
       where: { id: req.params.id }
     });
   });
 
   create = this.handleRequest(async (req: Request) => {
     const { 
-      number, customerId, customerName, title, issueDate, validUntil, 
-      subtotal, discount, discountType, discountValue, taxAmount, totalAmount, status, items, notes, terms 
+      number, customerId, customerName, title, issueDate, deliveryDate,
+      subtotal, discount, discountType, discountValue, taxAmount, totalAmount, status, items, notes, terms, quotationId 
     } = req.body;
     
-    return await prisma.quotation.create({
+    return await prisma.order.create({
       data: {
         number,
         customerId,
         customerName,
         title,
         issueDate: issueDate ? new Date(issueDate) : new Date(),
-        validUntil: new Date(validUntil),
+        deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
         subtotal: parseFloat(subtotal) || 0,
         discount: parseFloat(discount) || 0,
         discountType: discountType || 'Fixed',
@@ -70,18 +70,19 @@ export class QuotationsController extends BaseController {
         status: status || 'Draft',
         items: items || [],
         notes,
-        terms
+        terms,
+        quotationId
       }
     });
   });
 
   update = this.handleRequest(async (req: Request) => {
     const { 
-      number, customerId, customerName, title, issueDate, validUntil, 
+      number, customerId, customerName, title, issueDate, deliveryDate,
       subtotal, discount, discountType, discountValue, taxAmount, totalAmount, status, items, notes, terms 
     } = req.body;
     
-    return await prisma.quotation.update({
+    return await prisma.order.update({
       where: { id: req.params.id },
       data: {
         number,
@@ -89,7 +90,7 @@ export class QuotationsController extends BaseController {
         customerName,
         title,
         issueDate: issueDate ? new Date(issueDate) : undefined,
-        validUntil: validUntil ? new Date(validUntil) : undefined,
+        deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
         subtotal: subtotal !== undefined ? parseFloat(subtotal) : undefined,
         discount: discount !== undefined ? parseFloat(discount) : undefined,
         discountType,
@@ -105,83 +106,32 @@ export class QuotationsController extends BaseController {
   });
 
   delete = this.handleRequest(async (req: Request) => {
-    return await prisma.quotation.delete({
+    return await prisma.order.delete({
       where: { id: req.params.id }
     });
   });
 
   duplicate = this.handleRequest(async (req: Request) => {
-    const quotation = await prisma.quotation.findUnique({
+    const order = await prisma.order.findUnique({
       where: { id: req.params.id }
     });
 
-    if (!quotation) {
-      throw new Error('Quotation not found');
+    if (!order) {
+      throw new Error('Order not found');
     }
 
-    // Generate new unique number using series
-    const newNumber = await getAndIncrementNextNumber('quotation');
+    const newNumber = await getAndIncrementNextNumber('order');
 
-    const { id, createdAt, updatedAt, ...data } = quotation as any;
+    const { id, createdAt, updatedAt, ...data } = order as any;
     
-    return await prisma.quotation.create({
+    return await prisma.order.create({
       data: {
         ...data,
         number: newNumber,
         status: 'Draft',
         issueDate: new Date(),
-        validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days later
+        deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null
       }
     });
-  });
-
-  convertToOrder = this.handleRequest(async (req: Request) => {
-    const quotation = await prisma.quotation.findUnique({
-      where: { id: req.params.id }
-    });
-
-    if (!quotation) {
-      throw new Error('Quotation not found');
-    }
-
-    // Check if already converted
-    const existingOrder = await prisma.order.findUnique({
-      where: { quotationId: quotation.id }
-    });
-
-    if (existingOrder) {
-      return existingOrder;
-    }
-
-    const orderNumber = await getAndIncrementNextNumber('order');
-
-    const order = await prisma.order.create({
-      data: {
-        number: orderNumber,
-        customerId: quotation.customerId,
-        customerName: quotation.customerName,
-        title: quotation.title,
-        issueDate: new Date(),
-        subtotal: quotation.subtotal,
-        discount: quotation.discount,
-        discountType: (quotation as any).discountType || 'Fixed',
-        discountValue: (quotation as any).discountValue || 0,
-        taxAmount: quotation.taxAmount,
-        totalAmount: quotation.totalAmount,
-        status: 'Draft',
-        items: quotation.items || [],
-        notes: quotation.notes,
-        terms: quotation.terms,
-        quotationId: quotation.id
-      }
-    });
-
-    // Update quotation status
-    await prisma.quotation.update({
-      where: { id: quotation.id },
-      data: { status: 'Accepted' }
-    });
-
-    return order;
   });
 }

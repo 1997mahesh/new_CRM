@@ -19,7 +19,12 @@ import {
   DollarSign,
   ArrowUpRight,
   Printer,
-  Loader2
+  Loader2,
+  Columns as ColumnsIcon,
+  Copy,
+  Ban,
+  CreditCard,
+  Mail
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +34,11 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+  DropdownMenuGroup
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -51,25 +60,51 @@ export default function InvoicesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [summary, setSummary] = useState({ current: 0, oneToThirty: 0, thirtyToSixty: 0, sixtyPlus: 0, totalOverdue: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
   
+  // Column Preferences
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('invoice_columns');
+    return saved ? JSON.parse(saved) : {
+      number: true,
+      customer: true,
+      status: true,
+      dates: true,
+      total: true,
+      due: true,
+      actions: true
+    };
+  });
+
   const statusFilter = searchParams.get("status") || "all";
 
   useEffect(() => {
+    localStorage.setItem('invoice_columns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  useEffect(() => {
     fetchInvoices();
-  }, [search, statusFilter]);
+  }, [search, statusFilter, pagination.page, pagination.limit]);
 
   const fetchInvoices = async () => {
     setLoading(true);
     try {
-      const params: any = { search };
+      const params: any = { 
+        search,
+        page: pagination.page,
+        limit: pagination.limit
+      };
       if (statusFilter !== "all") {
         params.status = statusFilter;
       }
       const response = await api.get('/invoices', params);
       if (response.success) {
-        setInvoices(response.data || []);
+        setInvoices(response.data.items || []);
+        if (response.data.summary) setSummary(response.data.summary);
+        if (response.data.pagination) setPagination(response.data.pagination);
       }
     } catch (error) {
       toast.error("Failed to fetch invoices");
@@ -78,45 +113,70 @@ export default function InvoicesPage() {
     }
   };
 
-  const handleTabChange = (value: string) => {
-    setSearchParams({ status: value });
+  const updateInvoiceStatus = async (id: string, status: string) => {
+    try {
+      const res = await api.put(`/invoices/${id}`, { status });
+      if (res.success) {
+        toast.success(`Status updated to ${status}`);
+        fetchInvoices();
+      }
+    } catch (e) {
+      toast.error("Failed to update status");
+    }
   };
 
-  const agingSummary = useMemo(() => {
-    const summary = {
-      current: 0,
-      oneToThirty: 0,
-      thirtyToSixty: 0,
-      sixtyPlus: 0,
-      totalOverdue: 0
-    };
+  const handleTabChange = (value: string) => {
+    setSearchParams({ status: value });
+    setPagination(p => ({ ...p, page: 1 }));
+  };
 
-    invoices.forEach(inv => {
-      if (inv.status.toLowerCase() === "paid") return;
-      
-      const dueDate = new Date(inv.dueDate);
-      const today = new Date();
-      const diffDays = Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      if (diffDays <= 0) {
-        summary.current += inv.balance || 0;
-      } else {
-        summary.totalOverdue += inv.balance || 0;
-        if (diffDays <= 30) summary.oneToThirty += inv.balance || 0;
-        else if (diffDays <= 60) summary.thirtyToSixty += inv.balance || 0;
-        else summary.sixtyPlus += inv.balance || 0;
+  const deleteInvoice = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this invoice?")) return;
+    try {
+      const res = await api.delete(`/invoices/${id}`);
+      if (res.success) {
+        toast.success("Invoice deleted");
+        fetchInvoices();
       }
-    });
+    } catch (e) {
+      toast.error("Failed to delete invoice");
+    }
+  };
 
-    return summary;
-  }, [invoices]);
+  const voidInvoice = async (id: string) => {
+    try {
+      const res = await api.post(`/invoices/${id}/void`, {});
+      if (res.success) {
+        toast.success("Invoice voided");
+        fetchInvoices();
+      }
+    } catch (e) {
+      toast.error("Failed to void invoice");
+    }
+  };
+
+  const duplicateInvoice = async (id: string) => {
+    try {
+      const res = await api.post(`/invoices/${id}/duplicate`, {});
+      if (res.success) {
+        toast.success("Invoice duplicated");
+        navigate(`/sales/invoices/${res.data.id}/edit`);
+      }
+    } catch (e) {
+      toast.error("Failed to duplicate invoice");
+    }
+  };
 
   const AGING_STATS = [
-    { label: "Current", value: `$${agingSummary.current.toLocaleString()}`, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "1-30 Days", value: `$${agingSummary.oneToThirty.toLocaleString()}`, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "31-60 Days", value: `$${agingSummary.thirtyToSixty.toLocaleString()}`, color: "text-amber-600", bg: "bg-amber-50" },
-    { label: "60+ Days", value: `$${agingSummary.sixtyPlus.toLocaleString()}`, color: "text-red-600", bg: "bg-red-50" },
+    { label: "Current", value: `$${(summary.current || 0).toLocaleString()}`, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "1-30 Days", value: `$${(summary.oneToThirty || 0).toLocaleString()}`, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "31-60 Days", value: `$${(summary.thirtyToSixty || 0).toLocaleString()}`, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "60+ Days", value: `$${(summary.sixtyPlus || 0).toLocaleString()}`, color: "text-red-600", bg: "bg-red-50" },
   ];
+
+  const toggleColumn = (key: string) => {
+    setVisibleColumns((prev: any) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-12 p-6">
@@ -134,7 +194,10 @@ export default function InvoicesPage() {
             <Download className="h-4 w-4 text-slate-400" />
             <span>Export</span>
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-xl shadow-premium gap-2 tracking-wide">
+          <Button 
+            onClick={() => navigate('/sales/invoices/new')}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-xl shadow-premium gap-2 tracking-wide"
+          >
             <Plus className="h-4 w-4" />
             <span>New Invoice</span>
           </Button>
@@ -161,13 +224,11 @@ export default function InvoicesPage() {
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
           <Tabs value={statusFilter} className="w-full lg:w-auto" onValueChange={handleTabChange}>
              <TabsList className="bg-slate-100 dark:bg-white/5 p-1 h-11 rounded-xl w-full lg:w-auto overflow-x-auto scrollbar-none flex gap-1">
-               <TabsTrigger value="all" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">All</TabsTrigger>
-               <TabsTrigger value="sent" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Sent</TabsTrigger>
-               <TabsTrigger value="paid" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Paid</TabsTrigger>
-               <TabsTrigger value="partial" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Partial</TabsTrigger>
-               <TabsTrigger value="overdue" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Overdue</TabsTrigger>
-               <TabsTrigger value="unpaid" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Unpaid</TabsTrigger>
-               <TabsTrigger value="draft" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Draft</TabsTrigger>
+               {["all", "draft", "sent", "partial", "paid", "overdue", "void"].map((tab) => (
+                 <TabsTrigger key={tab} value={tab} className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0 capitalize">
+                   {tab}
+                 </TabsTrigger>
+               ))}
              </TabsList>
           </Tabs>
           <div className="flex items-center gap-2 w-full lg:w-auto">
@@ -180,6 +241,28 @@ export default function InvoicesPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
              </div>
+             
+             <DropdownMenu>
+               <DropdownMenuTrigger asChild>
+                 <Button variant="outline" className="h-11 rounded-xl border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d] gap-2 px-3">
+                   <ColumnsIcon className="h-4 w-4 text-slate-400" />
+                   <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Columns</span>
+                 </Button>
+               </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 py-1.5">Toggle Columns</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="opacity-50" />
+                    <DropdownMenuCheckboxItem checked={visibleColumns.number} onCheckedChange={() => toggleColumn('number')} className="rounded-lg text-xs font-bold">Invoice Number</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleColumns.customer} onCheckedChange={() => toggleColumn('customer')} className="rounded-lg text-xs font-bold">Customer</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleColumns.status} onCheckedChange={() => toggleColumn('status')} className="rounded-lg text-xs font-bold">Status</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleColumns.dates} onCheckedChange={() => toggleColumn('dates')} className="rounded-lg text-xs font-bold">Dates</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleColumns.total} onCheckedChange={() => toggleColumn('total')} className="rounded-lg text-xs font-bold">Total</DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={visibleColumns.due} onCheckedChange={() => toggleColumn('due')} className="rounded-lg text-xs font-bold">Amount Due</DropdownMenuCheckboxItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+             </DropdownMenu>
+
              <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d]">
                <Filter className="h-4 w-4 text-slate-400" />
              </Button>
@@ -188,129 +271,218 @@ export default function InvoicesPage() {
       </div>
 
       {/* Table Section */}
-      <Card className="border-slate-200 dark:border-white/5 bg-white dark:bg-[#211c1f] rounded-2xl shadow-soft dark:shadow-2xl overflow-hidden overflow-x-auto">
-         <table className="w-full text-left min-w-[900px]">
-           <thead>
-             <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-400 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
-                <th className="px-6 py-4">Invoice #</th>
-                <th className="px-6 py-4">Customer</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Issue / Due</th>
-                <th className="px-6 py-4">Total Amount</th>
-                <th className="px-6 py-4">Amount Due</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-             </tr>
-           </thead>
-           <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs">
-             {loading ? (
-               <tr>
-                 <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
-                    Loading invoices...
-                 </td>
+      <Card className="border-slate-200 dark:border-white/5 bg-white dark:bg-[#211c1f] rounded-2xl shadow-soft dark:shadow-2xl overflow-hidden">
+         <div className="overflow-x-auto scrollbar-thin">
+           <table className="w-full text-left min-w-[900px]">
+             <thead className="sticky top-0 z-10">
+               <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-400 bg-slate-50/80 dark:bg-black/20 backdrop-blur-md border-b border-slate-100 dark:border-white/5 text-slate-400">
+                  {visibleColumns.number && <th className="px-6 py-4">Invoice #</th>}
+                  {visibleColumns.customer && <th className="px-6 py-4">Customer</th>}
+                  {visibleColumns.status && <th className="px-6 py-4">Status</th>}
+                  {visibleColumns.dates && <th className="px-6 py-4">Issue / Due</th>}
+                  {visibleColumns.total && <th className="px-6 py-4">Total Amount</th>}
+                  {visibleColumns.due && <th className="px-6 py-4">Amount Due</th>}
+                  {visibleColumns.actions && <th className="px-6 py-4 text-right">Actions</th>}
                </tr>
-             ) : invoices.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 uppercase tracking-widest font-bold text-[10px]">No invoices found</td>
-                </tr>
-             ) : invoices.map((inv) => (
-               <tr key={inv.id} className={cn(
-                 "hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group",
-                 inv.status.toLowerCase() === "overdue" && "bg-red-50/10 dark:bg-red-500/[0.02]"
-               )}>
-                 <td className="px-6 py-5">
-                    <div className="flex items-center gap-3">
-                       <div className="h-10 w-10 flex items-center justify-center bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 rounded-xl group-hover:rotate-6 transition-transform">
-                          <Receipt className="h-5 w-5" />
+             </thead>
+             <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs">
+               {loading ? (
+                 Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td colSpan={7} className="px-6 py-8">
+                       <div className="h-4 bg-slate-100 dark:bg-white/5 rounded-full w-full"></div>
+                    </td>
+                  </tr>
+                 ))
+               ) : invoices.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400 uppercase tracking-widest font-bold text-[10px]">No invoices found</td>
+                  </tr>
+               ) : invoices.map((inv) => (
+                 <tr key={inv.id} className={cn(
+                   "hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group",
+                   inv.status.toLowerCase() === "overdue" && "bg-red-50/10 dark:bg-red-500/[0.02]"
+                 )}>
+                   {visibleColumns.number && (
+                    <td className="px-6 py-5">
+                       <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 flex items-center justify-center bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 rounded-xl group-hover:rotate-6 transition-transform">
+                             <Receipt className="h-5 w-5" />
+                          </div>
+                          <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">{inv.number}</span>
                        </div>
-                       <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">{inv.number}</span>
-                    </div>
-                 </td>
-                 <td className="px-6 py-5">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{inv.customerName}</span>
-                 </td>
-                 <td className="px-6 py-5">
-                    <div className="flex flex-col gap-1">
-                       <Badge variant="outline" className={cn("text-[9px] font-bold uppercase tracking-tighter px-2 h-5 border-none w-fit", STATUS_CONFIG[inv.status.toLowerCase()]?.color || "bg-slate-100 text-slate-500")}>
-                         {inv.status}
-                       </Badge>
-                    </div>
-                 </td>
-                 <td className="px-6 py-5">
-                    <div className="flex flex-col gap-0.5">
-                       <div className="flex items-center gap-2 text-slate-400">
-                          <Clock className="h-3 w-3" />
-                          <span className="text-[10px] font-medium">{new Date(inv.issueDate).toLocaleDateString()}</span>
-                       </div>
-                       <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                          <Calendar className="h-3 w-3 text-blue-500" />
-                          <span className={cn("text-[10px] font-bold", inv.status.toLowerCase() === "overdue" && "text-red-500 underline underline-offset-2")}>
-                             {new Date(inv.dueDate).toLocaleDateString()}
-                          </span>
-                       </div>
-                    </div>
-                 </td>
-                 <td className="px-6 py-5">
-                    <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono tracking-tighter italic">${inv.totalAmount.toLocaleString()}</span>
-                 </td>
-                 <td className="px-6 py-5">
-                    <span className={cn(
-                      "text-[13px] font-bold font-mono tracking-tighter italic",
-                      inv.balance === 0 ? "text-emerald-600" : "text-blue-600 dark:text-blue-400"
-                    )}>${inv.balance?.toLocaleString() || "0"}</span>
-                 </td>
-                 <td className="px-6 py-5 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10">
-                         <Eye className="h-4 w-4" />
-                       </Button>
-                       <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:bg-white/10">
-                         <Printer className="h-3.5 w-3.5" />
-                       </Button>
+                    </td>
+                   )}
+                   {visibleColumns.customer && (
+                    <td className="px-6 py-5">
+                       <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{inv.customerName}</span>
+                    </td>
+                   )}
+                   {visibleColumns.status && (
+                    <td className="px-6 py-5">
                        <DropdownMenu>
                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                           <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                             <Badge variant="outline" className={cn("text-[9px] font-bold uppercase tracking-tighter px-2 h-5 border-none rounded-full cursor-pointer hover:opacity-80 transition-opacity", STATUS_CONFIG[inv.status.toLowerCase()]?.color || "bg-slate-100 text-slate-500")}>
+                               {inv.status}
+                             </Badge>
+                           </Button>
                          </DropdownMenuTrigger>
-                         <DropdownMenuContent align="end" className="w-48 rounded-xl dark:bg-[#1f1a1d] dark:border-white/10">
-                            <DropdownMenuItem className="text-xs font-bold gap-2 focus:bg-blue-50 dark:focus:bg-blue-600/10">
-                               <Receipt className="h-3.5 w-3.5 text-blue-500" /> Add Payment
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-xs font-bold gap-2">
-                               <FileText className="h-3.5 w-3.5" /> Send Reminder
-                            </DropdownMenuItem>
-                            <DropdownMenuItem className="text-xs font-bold gap-2 text-red-500">
-                               <Trash2 className="h-3.5 w-3.5" /> Delete
-                            </DropdownMenuItem>
+                         <DropdownMenuContent align="start" className="w-44 rounded-2xl p-1.5 shadow-premium border-slate-100 dark:border-white/5 dark:bg-[#1a1619]">
+                           <DropdownMenuGroup>
+                             <DropdownMenuLabel className="text-[10px] font-black uppercase text-slate-400 px-3 py-2 tracking-widest">Change Status</DropdownMenuLabel>
+                             <DropdownMenuSeparator className="opacity-10" />
+                             {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                               <DropdownMenuItem 
+                                 key={key} 
+                                 onClick={() => updateInvoiceStatus(inv.id, key)}
+                                 className="rounded-xl text-[10px] font-bold uppercase py-2.5 px-3 gap-2"
+                               >
+                                 <div className={cn("h-2 w-2 rounded-full", config.color.split(' ')[0])} />
+                                 {config.label}
+                               </DropdownMenuItem>
+                             ))}
+                           </DropdownMenuGroup>
                          </DropdownMenuContent>
                        </DropdownMenu>
-                    </div>
-                 </td>
-               </tr>
-             ))}
-           </tbody>
-         </table>
+                    </td>
+                   )}
+                   {visibleColumns.dates && (
+                    <td className="px-6 py-5">
+                       <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2 text-slate-400">
+                             <Clock className="h-3 w-3" />
+                             <span className="text-[10px] font-medium">{new Date(inv.issueDate).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                             <Calendar className="h-3 w-3 text-blue-500" />
+                             <span className={cn("text-[10px] font-bold", inv.status.toLowerCase() === "overdue" && "text-red-500 underline underline-offset-2")}>
+                                {new Date(inv.dueDate).toLocaleDateString()}
+                             </span>
+                          </div>
+                       </div>
+                    </td>
+                   )}
+                   {visibleColumns.total && (
+                    <td className="px-6 py-5">
+                       <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono tracking-tighter italic">${(inv.totalAmount || 0).toLocaleString()}</span>
+                    </td>
+                   )}
+                   {visibleColumns.due && (
+                    <td className="px-6 py-5">
+                       <span className={cn(
+                         "text-[13px] font-bold font-mono tracking-tighter italic",
+                         inv.balance === 0 ? "text-emerald-600" : "text-blue-600 dark:text-blue-400"
+                       )}>${inv.balance?.toLocaleString() || "0"}</span>
+                    </td>
+                   )}
+                   {visibleColumns.actions && (
+                    <td className="px-6 py-5 text-right">
+                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10"
+                            onClick={() => navigate(`/sales/invoices/${inv.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:bg-white/10">
+                            <Printer className="h-3.5 w-3.5" />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                               <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                                 <MoreHorizontal className="h-4 w-4" />
+                               </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 rounded-xl dark:bg-[#1f1a1d] dark:border-white/10 p-2">
+                               <DropdownMenuGroup>
+                                 <DropdownMenuLabel className="text-[10px] uppercase font-black text-slate-400 tracking-widest px-2 py-1.5">Invoice Control</DropdownMenuLabel>
+                                 <DropdownMenuSeparator className="opacity-10" />
+                                 <DropdownMenuItem onClick={() => navigate(`/sales/invoices/${inv.id}`)} className="text-xs font-bold gap-2 focus:bg-blue-50 dark:focus:bg-blue-600/10 rounded-lg">
+                                    <Receipt className="h-3.5 w-3.5 text-emerald-500" /> Record Payment
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem className="text-xs font-bold gap-2 rounded-lg">
+                                    <Mail className="h-3.5 w-3.5 text-slate-400" /> Send Reminder
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => duplicateInvoice(inv.id)} className="text-xs font-bold gap-2 rounded-lg">
+                                    <Copy className="h-3.5 w-3.5 text-slate-400" /> Duplicate
+                                 </DropdownMenuItem>
+                               </DropdownMenuGroup>
+                               <DropdownMenuSeparator className="opacity-10" />
+                               <DropdownMenuGroup>
+                                 <DropdownMenuItem onClick={() => voidInvoice(inv.id)} className="text-xs font-bold gap-2 text-amber-600 rounded-lg">
+                                    <Ban className="h-3.5 w-3.5" /> Void
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => deleteInvoice(inv.id)} className="text-xs font-bold gap-2 text-red-500 rounded-lg">
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                 </DropdownMenuItem>
+                               </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                       </div>
+                    </td>
+                   )}
+                 </tr>
+               ))}
+             </tbody>
+           </table>
+         </div>
 
          {/* Table Footer */}
          <div className="bg-slate-50/50 dark:bg-white/5 px-6 py-4 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
                <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Rows per page:</span>
-                  <select className="bg-transparent text-[10px] font-bold text-slate-600 outline-none">
-                     <option>10</option>
-                     <option>20</option>
-                     <option>50</option>
+                  <select 
+                    className="bg-transparent text-[10px] font-bold text-slate-600 outline-none"
+                    value={pagination.limit}
+                    onChange={(e) => setPagination(p => ({ ...p, limit: Number(e.target.value), page: 1 }))}
+                  >
+                     <option value={10}>10</option>
+                     <option value={20}>20</option>
+                     <option value={50}>50</option>
                   </select>
                </div>
-               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic decoration-blue-500/20 underline underline-offset-4">Showing 1-10 of 124</span>
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic decoration-blue-500/20 underline underline-offset-4">
+                 Showing {((pagination.page - 1) * pagination.limit) + 1} - {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+               </span>
             </div>
             <div className="flex gap-1">
-               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-400"><ChevronRight className="h-4 w-4 rotate-180" /></Button>
-               <Button variant="ghost" className="h-8 min-w-[32px] rounded-xl font-bold text-[10px] bg-blue-600 text-white shadow-premium">1</Button>
-               <Button variant="ghost" className="h-8 min-w-[32px] rounded-xl font-bold text-[10px] text-slate-500 hover:bg-slate-100 italic">2</Button>
-               <Button variant="ghost" className="h-8 min-w-[32px] rounded-xl font-bold text-[10px] text-slate-500 hover:bg-slate-100 italic">3</Button>
-               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-400"><ChevronRight className="h-4 w-4" /></Button>
+               <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-xl text-slate-400"
+                disabled={pagination.page === 1}
+                onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
+               >
+                 <ChevronRight className="h-4 w-4 rotate-180" />
+               </Button>
+
+               {Array.from({ length: pagination.pages }, (_, i) => i + 1).map(p => (
+                 <Button 
+                   key={p}
+                   variant="ghost" 
+                   className={cn(
+                     "h-8 min-w-[32px] rounded-xl font-bold text-[10px]",
+                     pagination.page === p ? "bg-blue-600 text-white shadow-premium" : "text-slate-500 hover:bg-slate-100 italic"
+                   )}
+                   onClick={() => setPagination(prev => ({ ...prev, page: p }))}
+                 >
+                   {p}
+                 </Button>
+               ))}
+
+               <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-xl text-slate-400"
+                disabled={pagination.page === pagination.pages}
+                onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
+               >
+                 <ChevronRight className="h-4 w-4" />
+               </Button>
             </div>
          </div>
       </Card>
@@ -323,29 +495,26 @@ export default function InvoicesPage() {
                Overdue Collection Pipeline
             </h2>
             <div className="space-y-4">
-               {[
-                 { customer: "Nexa Logistics", invoice: "INV-2024-003", overdue: "6 Days", amount: "$8,500.00", priority: "High" },
-                 { customer: "Prime Properties", invoice: "INV-2023-982", overdue: "45 Days", amount: "$12,100.00", priority: "Critical" },
-               ].map((item, idx) => (
+               {invoices.filter(i => i.status.toLowerCase() === 'overdue').slice(0, 3).map((item, idx) => (
                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 group hover:bg-white transition-all">
                     <div className="flex items-center gap-4">
-                       <div className={cn(
-                         "h-10 w-10 rounded-full flex items-center justify-center text-[10px] font-bold uppercase",
-                         item.priority === "Critical" ? "bg-red-50 text-red-600" : "bg-orange-50 text-orange-600"
-                       )}>
-                          {item.priority[0]}
+                       <div className="h-10 w-10 rounded-full flex items-center justify-center text-[10px] font-bold uppercase bg-red-50 text-red-600">
+                          {item.customerName[0]}
                        </div>
                        <div>
-                          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{item.customer}</p>
-                          <p className="text-[10px] text-slate-400">{item.invoice} • <span className="font-bold text-red-500">{item.overdue} Late</span></p>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{item.customerName}</p>
+                          <p className="text-[10px] text-slate-400">{item.number} • <span className="font-bold text-red-500">OVERDUE</span></p>
                        </div>
                     </div>
                     <div className="text-right">
-                       <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{item.amount}</p>
+                       <p className="text-xs font-bold text-slate-800 dark:text-slate-100">${(item.balance || 0).toLocaleString()}</p>
                        <Button variant="ghost" className="h-6 text-[9px] font-bold uppercase text-blue-600 p-0 hover:bg-transparent underline underline-offset-2">Send Reminder</Button>
                     </div>
                  </div>
                ))}
+               {invoices.filter(i => i.status.toLowerCase() === 'overdue').length === 0 && (
+                 <div className="py-8 text-center text-slate-400 text-[10px] font-bold uppercase tracking-widest">No overdue invoices found</div>
+               )}
             </div>
          </Card>
          <Card className="p-6 border-slate-200 dark:border-white/5 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl shadow-premium">

@@ -176,7 +176,7 @@ export function ExpensesPage() {
                    </div>
                 </TableCell>
                 <TableCell className="py-4 px-6 font-bold text-slate-800 text-sm">
-                  ${expense.amount.toLocaleString()}
+                  ${(expense.amount || 0).toLocaleString()}
                 </TableCell>
                 <TableCell className="py-4 px-6 text-right">
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">

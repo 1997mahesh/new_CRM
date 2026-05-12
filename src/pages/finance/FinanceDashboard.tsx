@@ -94,10 +94,10 @@ export default function FinanceDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Expenses MTD" value={`$${stats.mtdExpenses.toLocaleString()}`} trend="+4.2%" icon={ArrowUpRight} color="rose" />
-        <StatCard title="Expenses YTD" value={`$${stats.ytdExpenses.toLocaleString()}`} trend="+2.1%" icon={TrendingUp} color="rose" />
-        <StatCard title="Pending Approvals" value={stats.pendingApprovals} subtitle="Awaiting action" icon={Clock} color="amber" />
-        <StatCard title="Recent Transactions" value={stats.recentExpenses.length} icon={CheckCircle2} color="emerald" />
+        <StatCard title="Expenses MTD" value={`$${(stats.mtdExpenses || 0).toLocaleString()}`} trend="+4.2%" icon={ArrowUpRight} color="rose" />
+        <StatCard title="Expenses YTD" value={`$${(stats.ytdExpenses || 0).toLocaleString()}`} trend="+2.1%" icon={TrendingUp} color="rose" />
+        <StatCard title="Pending Approvals" value={stats.pendingApprovals || 0} subtitle="Awaiting action" icon={Clock} color="amber" />
+        <StatCard title="Recent Transactions" value={(stats.recentExpenses || []).length} icon={CheckCircle2} color="emerald" />
       </div>
 
       {/* Charts Section */}
@@ -174,7 +174,7 @@ export default function FinanceDashboard() {
                     <span className="text-sm font-medium text-slate-600">{item.name}</span>
                   </div>
                   <span className="text-sm font-bold text-slate-800">
-                    ${item.amount.toLocaleString()}
+                    ${(item.amount || 0).toLocaleString()}
                   </span>
                 </div>
               ))}
@@ -221,7 +221,7 @@ export default function FinanceDashboard() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-6 py-4 font-bold text-sm text-slate-800">
-                      ${item.amount.toLocaleString()}
+                      ${(item.amount || 0).toLocaleString()}
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right text-xs text-slate-400">
                       {new Date(item.date).toLocaleDateString()}

@@ -168,7 +168,7 @@ export function ProductsPage() {
                    </div>
                 </TableCell>
                 <TableCell className="py-4 px-6 font-bold text-slate-800 text-sm">
-                  ${product.price.toLocaleString()}
+                  ${(product.price || 0).toLocaleString()}
                 </TableCell>
                 <TableCell className="py-4 px-6">
                    <Badge className={cn(

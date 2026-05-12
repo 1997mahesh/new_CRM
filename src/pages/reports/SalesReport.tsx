@@ -251,7 +251,7 @@ export default function SalesReport() {
                                <p className="text-[10px] text-slate-400 font-bold uppercase">{inv.status}</p>
                             </div>
                             <div className="text-right">
-                               <p className="text-sm font-black text-slate-800">${inv.amount.toLocaleString()}</p>
+                               <p className="text-sm font-black text-slate-800">${(inv.amount || 0).toLocaleString()}</p>
                                <p className="text-[10px] text-slate-400 font-bold">{new Date(inv.dueDate).toLocaleDateString()}</p>
                             </div>
                          </div>

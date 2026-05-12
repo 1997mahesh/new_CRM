@@ -42,18 +42,16 @@ export function NotificationDropdown() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-80 p-1 rounded-2xl shadow-2xl border-slate-100 dark:border-white/5 dark:bg-[#211c1f]">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel className="px-4 py-3 flex items-center justify-between">
+          <DropdownMenuGroup className="max-h-[300px] overflow-y-auto">
+            <DropdownMenuLabel className="px-4 py-3 flex items-center justify-between sticky top-0 bg-white dark:bg-[#211c1f] z-10">
               <span className="font-bold text-slate-800 dark:text-slate-100">{t("notifications")}</span>
               {Array.isArray(notifications) && notifications.length > 0 && (
-                <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-full text-[9px]">
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-full">
                   {notifications.length} NEW
                 </span>
               )}
             </DropdownMenuLabel>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator className="mx-1 bg-slate-100 dark:bg-white/5" />
-          <div className="max-h-[300px] overflow-y-auto py-1">
+            <DropdownMenuSeparator className="mx-1 bg-slate-100 dark:bg-white/5" />
             {Array.isArray(notifications) && notifications.length > 0 ? (
               notifications.map((n) => (
                 <DropdownMenuItem key={n.id} className="px-4 py-3 cursor-pointer hover:bg-slate-50 dark:focus:bg-white/5 rounded-lg transition-colors m-1">
@@ -68,7 +66,7 @@ export function NotificationDropdown() {
                 <p className="text-sm">{t("no_notifications")}</p>
               </div>
             )}
-          </div>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator className="mx-1 bg-slate-100 dark:bg-white/5" />
           <div className="p-2">
             <Button variant="ghost" className="w-full text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-600/10 rounded-lg py-2">

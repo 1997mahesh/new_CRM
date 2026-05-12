@@ -31,8 +31,29 @@ async function seed() {
   });
 
   console.log('User created: admin@veltroxcrm.com / admin123');
+  
+  // 3. Number Series
+  console.log('Seeding Number Series...');
+  const series = [
+    { name: 'quotation', prefix: 'QT-2026-', padding: 4 },
+    { name: 'order', prefix: 'SO-2026-', padding: 4 },
+    { name: 'invoice', prefix: 'INV-2026-', padding: 4 }
+  ];
 
-  // 3. Leads (20)
+  for (const s of series) {
+    await prisma.numberSeries.upsert({
+      where: { name: s.name },
+      update: {},
+      create: {
+        name: s.name,
+        prefix: s.prefix,
+        padding: s.padding,
+        lastNumber: 0
+      }
+    });
+  }
+
+  // 4. Leads (20)
   const companies = ["Global Trade Corp", "TechFlow Solutions", "Nexa Logistics", "Zenith Design", "Alpha Tech", "Blue Sky Media", "Prime Properties"];
   const stages = ["New", "Contacted", "Qualified", "Proposal", "Negotiation", "Won", "Lost"];
   const sources = ["Website", "Referral", "Cold Call", "Partner"];

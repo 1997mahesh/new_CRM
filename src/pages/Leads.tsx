@@ -150,7 +150,7 @@ export function LeadsPage() {
                         <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50">
                           <div className="flex items-center gap-1.5 font-bold text-slate-700">
                             <DollarSign className="h-3 w-3 text-emerald-500" />
-                            <span className="text-xs">{lead.val.toLocaleString()}</span>
+                            <span className="text-xs">{(lead.val || 0).toLocaleString()}</span>
                           </div>
                           <Avatar className="h-6 w-6 border-2 border-white shadow-sm">
                             <AvatarFallback className="text-[8px] bg-blue-100 text-blue-600 font-bold">{lead.user.slice(0, 2).toUpperCase()}</AvatarFallback>

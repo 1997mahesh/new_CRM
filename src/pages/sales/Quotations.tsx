@@ -167,20 +167,20 @@ export default function QuotationsPage() {
                <DropdownMenuContent align="end" className="w-56 rounded-2xl border-slate-200 dark:border-white/10 dark:bg-[#1f1a1d] p-2">
                  <DropdownMenuGroup>
                    <DropdownMenuLabel className="text-[10px] uppercase font-black tracking-widest text-slate-400 px-3 py-2">Toggle Columns</DropdownMenuLabel>
+                   <DropdownMenuSeparator className="opacity-50" />
+                   {Object.entries(columns).map(([key, value]) => (
+                     key !== 'actions' && (
+                       <DropdownMenuCheckboxItem
+                         key={key}
+                         checked={value}
+                         onCheckedChange={() => toggleColumn(key as any)}
+                         className="rounded-xl py-2.5 px-3 text-xs font-bold capitalize hover:bg-slate-50 dark:hover:bg-white/5"
+                       >
+                         {key.replace(/([A-Z])/g, ' $1')}
+                       </DropdownMenuCheckboxItem>
+                     )
+                   ))}
                  </DropdownMenuGroup>
-                 <DropdownMenuSeparator className="opacity-50" />
-                 {Object.entries(columns).map(([key, value]) => (
-                   key !== 'actions' && (
-                     <DropdownMenuCheckboxItem
-                       key={key}
-                       checked={value}
-                       onCheckedChange={() => toggleColumn(key as any)}
-                       className="rounded-xl py-2.5 px-3 text-xs font-bold capitalize hover:bg-slate-50 dark:hover:bg-white/5"
-                     >
-                       {key.replace(/([A-Z])/g, ' $1')}
-                     </DropdownMenuCheckboxItem>
-                   )
-                 ))}
                </DropdownMenuContent>
              </DropdownMenu>
           </div>
@@ -258,7 +258,7 @@ export default function QuotationsPage() {
                        <td className="px-6 py-6">
                          <div className="flex flex-col">
                            <span className="text-sm font-black text-slate-900 dark:text-white font-mono tracking-tighter italic">
-                             ${q.totalAmount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                             ${(q.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                            </span>
                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">USD Currency</span>
                          </div>

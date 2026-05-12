@@ -78,11 +78,11 @@ export class DashboardController extends BaseController {
         _sum: { value: true },
         where: { status: 'Open' }
       }),
-      prisma.lead.groupBy({
+      (prisma.lead as any).groupBy({
         by: ['pipelineStage'],
         _count: true
       }),
-      prisma.invoice.groupBy({
+      (prisma.invoice as any).groupBy({
         by: ['customerId', 'customerName'],
         _sum: { totalAmount: true },
         where: { status: 'paid' },

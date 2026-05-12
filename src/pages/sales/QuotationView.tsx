@@ -120,17 +120,6 @@ export function QuotationViewPage() {
 
   const status = STATUS_CONFIG[quotation.status] || STATUS_CONFIG["Draft"];
 
-  const formDataDiscountAmount = (q: any) => {
-    const lineDiscountTotal = q.items?.reduce((acc: number, item: any) => 
-      acc + (item.quantity * item.unitPrice * (item.discountPercent / 100)), 0) || 0;
-    const amountAfterLineDiscounts = q.subtotal - lineDiscountTotal;
-    
-    if (q.discountType === "Percentage") {
-      return amountAfterLineDiscounts * (q.discountValue / 100);
-    }
-    return q.discountValue;
-  };
-
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-500 max-w-5xl mx-auto">
       {/* Top Navigation */}
@@ -277,7 +266,6 @@ export function QuotationViewPage() {
                     <th className="pb-4 pt-0 px-4 italic">Description</th>
                     <th className="pb-4 pt-0 px-4 text-center italic">Qty</th>
                     <th className="pb-4 pt-0 px-4 text-right italic">Unit Price</th>
-                    <th className="pb-4 pt-0 px-4 text-center italic">Disc %</th>
                     <th className="pb-4 pt-0 px-4 text-center italic">Tax %</th>
                     <th className="pb-4 pt-0 px-4 text-right italic">Amount</th>
                  </tr>
@@ -288,13 +276,12 @@ export function QuotationViewPage() {
                        <td className="py-5 px-2 text-[10px] font-bold text-slate-400 font-mono italic">{String(idx + 1).padStart(2, '0')}</td>
                        <td className="py-5 px-4 font-bold text-slate-800 dark:text-slate-100 italic">{item.description}</td>
                        <td className="py-5 px-4 text-center font-bold text-slate-600 dark:text-slate-400 font-mono italic">{item.quantity}</td>
-                       <td className="py-5 px-4 text-right font-bold text-slate-600 dark:text-slate-400 font-mono italic">${item.unitPrice.toLocaleString()}</td>
-                       <td className="py-5 px-4 text-center text-[10px] font-bold text-red-500 font-mono italic">{item.discountPercent || 0}%</td>
+                       <td className="py-5 px-4 text-right font-bold text-slate-600 dark:text-slate-400 font-mono italic">${(item.unitPrice || 0).toLocaleString()}</td>
                        <td className="py-5 px-4 text-center">
                           <Badge variant="secondary" className="bg-slate-100 dark:bg-white/5 text-[9px] font-bold uppercase tracking-tight h-5">{item.taxPercent}%</Badge>
                        </td>
                        <td className="py-5 px-4 text-right font-black text-slate-900 dark:text-white font-mono tracking-tighter italic">
-                         ${item.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                         ${(item.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                        </td>
                     </tr>
                  ))}
@@ -320,28 +307,17 @@ export function QuotationViewPage() {
             </div>
 
             <div className="w-full md:w-80 space-y-4">
-               <div className="flex justify-between items-center px-4 py-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic font-medium">Subtotal</span>
-                  <span className="text-sm font-bold text-slate-800 dark:text-white font-mono italic">${quotation.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+               <div className="flex justify-between items-center px-4 py-2 border-b border-slate-100 dark:border-white/5">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Subtotal</span>
+                  <span className="text-sm font-bold font-mono italic">${(quotation.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                </div>
-               {quotation.discountValue > 0 && (
-                 <div className="flex justify-between items-center px-4 py-1">
-                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter italic">
-                     Overall Discount ({quotation.discountType === 'Percentage' ? `${quotation.discountValue}%` : 'Fixed'})
-                   </span>
-                   <span className="text-xs font-bold text-red-400 font-mono italic">
-                     {quotation.discountType === 'Percentage' ? '-' : '-$'}
-                     {formDataDiscountAmount(quotation).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                   </span>
-                 </div>
-               )}
-               <div className="flex justify-between items-center px-4 py-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic text-red-500">Total Discount</span>
-                  <span className="text-sm font-bold text-red-500 font-mono italic">-${quotation.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+               <div className="flex justify-between items-center px-4 py-2 text-red-500">
+                  <span className="text-[10px] font-black uppercase tracking-widest italic">Discount</span>
+                  <span className="text-sm font-bold font-mono italic">-${(quotation.discount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                </div>
                <div className="flex justify-between items-center px-4 py-2">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic text-emerald-500">Tax Total</span>
-                  <span className="text-sm font-bold text-emerald-500 font-mono italic">+${quotation.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <span className="text-sm font-bold text-emerald-500 font-mono italic">+${(quotation.taxAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                </div>
                
                <motion.div 
@@ -355,7 +331,7 @@ export function QuotationViewPage() {
                      <span className="text-[8px] font-black text-white dark:text-slate-900 bg-blue-600 px-2 py-0.5 rounded-full">USD</span>
                   </div>
                   <div className="relative text-3xl font-black text-white dark:text-slate-900 font-mono tracking-tighter italic">
-                     ${quotation.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                     ${(quotation.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                   </div>
                </motion.div>
             </div>

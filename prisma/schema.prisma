@@ -355,15 +355,37 @@ model Invoice {
   issueDate     DateTime @default(now())
   dueDate       DateTime
   amount        Float    // Subtotal
+  discount      Float    @default(0)
+  discountType  String   @default("Fixed") // Percentage, Fixed
+  discountValue Float    @default(0)
   taxAmount     Float    @default(0)
   totalAmount   Float
-  status        String   @default("unpaid") // paid, unpaid, overdue, cancelled
+  balance       Float    @default(0)
+  status        String   @default("draft") // draft, sent, partial, paid, overdue, void
   items         Json?    // Array of objects
   notes         String?  @db.Text
+  terms         String?  @db.Text
+  orderId       String?
+  payments      Payment[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
   @@map("invoices")
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  invoice       Invoice  @relation(fields: [invoiceId], references: [id])
+  amount        Float
+  date          DateTime @default(now())
+  method        String   // Cash, Bank Transfer, Credit Card, etc.
+  note          String?  @db.Text
+  reference     String?  // Transaction ID
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("payments")
 }
 
 model Quotation {

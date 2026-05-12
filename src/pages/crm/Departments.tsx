@@ -273,18 +273,18 @@ export default function DepartmentsPage() {
             <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl dark:bg-[#1a1619] dark:border-white/5 shadow-2xl">
               <DropdownMenuGroup>
                 <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Table Columns</DropdownMenuLabel>
+                <DropdownMenuSeparator className="opacity-50" />
+                {columns.map(col => (
+                  <DropdownMenuCheckboxItem
+                    key={col.id}
+                    checked={visibleColumns.includes(col.id)}
+                    onCheckedChange={() => toggleColumn(col.id)}
+                    className="rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    {col.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
               </DropdownMenuGroup>
-              <DropdownMenuSeparator className="opacity-50" />
-              {columns.map(col => (
-                <DropdownMenuCheckboxItem
-                  key={col.id}
-                  checked={visibleColumns.includes(col.id)}
-                  onCheckedChange={() => toggleColumn(col.id)}
-                  className="rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                >
-                  {col.label}
-                </DropdownMenuCheckboxItem>
-              ))}
             </DropdownMenuContent>
           </DropdownMenu>
 

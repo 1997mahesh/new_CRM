@@ -1,17 +1,14 @@
 import { Router } from 'express';
-import { InvoicesController } from './invoices.controller.js';
+import { OrdersController } from './orders.controller.js';
 
 const router = Router();
-const controller = new InvoicesController();
+const controller = new OrdersController();
 
 router.get('/', controller.getAll);
 router.get('/:id', controller.getById);
 router.post('/', controller.create);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.delete);
-router.post('/:id/payment', controller.recordPayment);
-router.post('/:id/void', controller.voidInvoice);
 router.post('/:id/duplicate', controller.duplicate);
-router.post('/from-order/:id', controller.createFromOrder);
 
 export default router;

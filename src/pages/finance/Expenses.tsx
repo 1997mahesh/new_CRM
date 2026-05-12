@@ -195,7 +195,7 @@ export default function ExpensesPage() {
         <div className="space-y-1">
           <h1 className="text-3xl font-bold tracking-tight text-slate-800">Expenses</h1>
           <p className="text-sm text-slate-500 font-medium"> 
-            Approved this view: <span className="text-emerald-600 font-bold">${totalApproved.toLocaleString()}</span>
+            Approved this view: <span className="text-emerald-600 font-bold">${(totalApproved || 0).toLocaleString()}</span>
           </p>
         </div>
 
@@ -301,7 +301,7 @@ export default function ExpensesPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-4 px-6 font-black text-sm text-slate-800">
-                    ${expense.amount.toLocaleString()}
+                    ${(expense.amount || 0).toLocaleString()}
                   </TableCell>
                   <TableCell className="py-4 px-6">
                      <span className="text-xs text-slate-500">{expense.paymentMethod}</span>

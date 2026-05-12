@@ -123,7 +123,7 @@ export default function StockReport() {
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StockStatCard title="Inventory Valuation" value={`$${data?.totalValuation.toLocaleString()}`} subtitle="Total asset worth" color="blue" icon={Package} />
+        <StockStatCard title="Inventory Valuation" value={`$${(data?.totalValuation || 0).toLocaleString()}`} subtitle="Total asset worth" color="blue" icon={Package} />
         <StockStatCard title="Total SKU Count" value={data?.inventory.length} subtitle="Active product records" color="emerald" icon={BarChart3} />
         <StockStatCard title="Low Stock Alerts" value={data?.lowStockCount} subtitle="Items requiring reorder" color="amber" icon={AlertTriangle} />
         <StockStatCard title="Warehouses" value={Object.keys(data?.warehouseDistribution || {}).length} subtitle="Operational sites" color="rose" icon={LayoutDashboard} />
@@ -167,7 +167,7 @@ export default function StockReport() {
                       </Badge>
                     </TableCell>
                     <TableCell className="py-4 px-6 font-bold text-sm text-slate-800">{item.quantity}</TableCell>
-                    <TableCell className="py-4 px-6 font-bold text-sm text-slate-800">${item.valuation.toLocaleString()}</TableCell>
+                    <TableCell className="py-4 px-6 font-bold text-sm text-slate-800">${(item.valuation || 0).toLocaleString()}</TableCell>
                     <TableCell className="py-4 px-6 text-right">
                        <Badge className={cn(
                          "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase border-none",

@@ -639,10 +639,10 @@ export default function SalesForecastingPage() {
                           <span className="font-bold text-slate-800 dark:text-white group-hover:text-blue-600 transition-colors uppercase tracking-tight">{row.region}</span>
                        </td>
                        <td className="px-8 py-5">
-                          <span className="font-mono font-bold italic text-blue-600">${row.forecast.toLocaleString()}</span>
+                          <span className="font-mono font-bold italic text-blue-600">${(row.forecast || 0).toLocaleString()}</span>
                        </td>
                        <td className="px-8 py-5">
-                          <span className="font-mono font-bold italic text-slate-700 dark:text-slate-300">${row.actual.toLocaleString()}</span>
+                          <span className="font-mono font-bold italic text-slate-700 dark:text-slate-300">${(row.actual || 0).toLocaleString()}</span>
                        </td>
                        <td className="px-8 py-5">
                           <Badge variant="outline" className={cn(

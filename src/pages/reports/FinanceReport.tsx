@@ -117,9 +117,9 @@ export default function FinanceReport() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <ReportStatCard title="Total Income" value={`$${data?.summary.totalIncome.toLocaleString()}`} trend="+12.5%" color="emerald" icon={TrendingUp} />
-        <ReportStatCard title="Total Expenses" value={`$${data?.summary.totalExpenses.toLocaleString()}`} trend="+4.2%" color="rose" icon={CreditCard} />
-        <ReportStatCard title="Net Profit" value={`$${data?.summary.netProfit.toLocaleString()}`} trend="+18.2%" color="blue" icon={DollarSign} />
+        <ReportStatCard title="Total Income" value={`$${(data?.summary.totalIncome || 0).toLocaleString()}`} trend="+12.5%" color="emerald" icon={TrendingUp} />
+        <ReportStatCard title="Total Expenses" value={`$${(data?.summary.totalExpenses || 0).toLocaleString()}`} trend="+4.2%" color="rose" icon={CreditCard} />
+        <ReportStatCard title="Net Profit" value={`$${(data?.summary.netProfit || 0).toLocaleString()}`} trend="+18.2%" color="blue" icon={DollarSign} />
         <ReportStatCard title="Net Margin" value={`${data?.summary.margin.toFixed(1)}%`} subtitle="Profitability ratio" color="amber" icon={Briefcase} />
       </div>
 
@@ -133,15 +133,15 @@ export default function FinanceReport() {
           <CardContent className="space-y-4">
              <div className="flex justify-between items-center py-3 border-b border-slate-50">
                 <span className="text-sm font-medium text-slate-600">Operating Revenue</span>
-                <span className="text-sm font-bold text-slate-800 font-mono">${data?.summary.totalIncome.toLocaleString()}</span>
+                <span className="text-sm font-bold text-slate-800 font-mono">${(data?.summary.totalIncome || 0).toLocaleString()}</span>
              </div>
              <div className="flex justify-between items-center py-3 border-b border-slate-50">
                 <span className="text-sm font-medium text-slate-600">Operating Expenses</span>
-                <span className="text-sm font-bold text-rose-600 font-mono">-${data?.summary.totalExpenses.toLocaleString()}</span>
+                <span className="text-sm font-bold text-rose-600 font-mono">-${(data?.summary.totalExpenses || 0).toLocaleString()}</span>
              </div>
              <div className="flex justify-between items-center py-4 bg-slate-50 rounded-2xl px-4">
                 <span className="text-sm font-black text-slate-800 uppercase tracking-tight">Net Operating Income</span>
-                <span className="text-lg font-black text-blue-600 font-mono">${data?.summary.netProfit.toLocaleString()}</span>
+                <span className="text-lg font-black text-blue-600 font-mono">${(data?.summary.netProfit || 0).toLocaleString()}</span>
              </div>
           </CardContent>
         </Card>
@@ -154,12 +154,12 @@ export default function FinanceReport() {
           <CardContent className="grid grid-cols-2 gap-4">
              <div className="p-4 rounded-3xl bg-blue-50/50 border border-blue-100 flex flex-col items-center justify-center text-center">
                 <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Accounts Receivable</p>
-                <h4 className="text-xl font-black text-blue-600 font-mono">${data?.receivables.toLocaleString()}</h4>
+                <h4 className="text-xl font-black text-blue-600 font-mono">${(data?.receivables || 0).toLocaleString()}</h4>
                 <p className="text-[10px] text-blue-400 font-medium mt-1 italic">Expected collections</p>
              </div>
              <div className="p-4 rounded-3xl bg-rose-50/50 border border-rose-100 flex flex-col items-center justify-center text-center">
                 <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mb-1">Accounts Payable</p>
-                <h4 className="text-xl font-black text-rose-600 font-mono">${data?.payables.toLocaleString()}</h4>
+                <h4 className="text-xl font-black text-rose-600 font-mono">${(data?.payables || 0).toLocaleString()}</h4>
                 <p className="text-[10px] text-rose-400 font-medium mt-1 italic">Pending obligations</p>
              </div>
           </CardContent>

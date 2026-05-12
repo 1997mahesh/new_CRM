@@ -100,13 +100,13 @@ export default function SalesDashboard() {
   const stats = data?.stats || {};
 
   const kpiCards = [
-    { label: "Revenue MTD", value: `$${stats.revenueMTD?.toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50", route: "/sales/invoices", linkText: "View invoices" },
-    { label: "Revenue YTD", value: `$${stats.revenueYTD?.toLocaleString()}`, icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50", route: "/sales/reports/revenue", linkText: "Revenue report" },
-    { label: "Open Invoices", value: stats.openInvoices?.toString(), icon: Receipt, color: "text-amber-600", bg: "bg-amber-50", route: "/sales/invoices?status=unpaid", linkText: "Manage invoices" },
-    { label: "Overdue", value: stats.overdueInvoices?.toString(), icon: AlertCircle, color: "text-red-600", bg: "bg-red-50", route: "/sales/invoices?status=overdue", linkText: "Recover payments" },
-    { label: "Pipeline Leads", value: stats.pipelineLeads?.toString(), icon: Target, color: "text-indigo-600", bg: "bg-indigo-50", route: "/sales/leads", linkText: "Open leads" },
-    { label: "Pipeline Value", value: `$${(stats.pipelineValue / 1000000).toFixed(1)}M`, icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50", route: "/sales/pipeline", linkText: "Pipeline view" },
-    { label: "Forecast", value: `$${(stats.forecast / 1000).toFixed(0)}k`, icon: Clock, color: "text-cyan-600", bg: "bg-cyan-50", route: "/sales/forecast", linkText: "Forecast report" },
+    { label: "Revenue MTD", value: `$${(stats.revenueMTD || 0).toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50", route: "/sales/invoices", linkText: "View invoices" },
+    { label: "Revenue YTD", value: `$${(stats.revenueYTD || 0).toLocaleString()}`, icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50", route: "/sales/reports/revenue", linkText: "Revenue report" },
+    { label: "Open Invoices", value: (stats.openInvoices || 0).toString(), icon: Receipt, color: "text-amber-600", bg: "bg-amber-50", route: "/sales/invoices?status=unpaid", linkText: "Manage invoices" },
+    { label: "Overdue", value: (stats.overdueInvoices || 0).toString(), icon: AlertCircle, color: "text-red-600", bg: "bg-red-50", route: "/sales/invoices?status=overdue", linkText: "Recover payments" },
+    { label: "Pipeline Leads", value: (stats.pipelineLeads || 0).toString(), icon: Target, color: "text-indigo-600", bg: "bg-indigo-50", route: "/sales/leads", linkText: "Open leads" },
+    { label: "Pipeline Value", value: `$${((stats.pipelineValue || 0) / 1000000).toFixed(1)}M`, icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50", route: "/sales/pipeline", linkText: "Pipeline view" },
+    { label: "Forecast", value: `$${((stats.forecast || 0) / 1000).toFixed(0)}k`, icon: Clock, color: "text-cyan-600", bg: "bg-cyan-50", route: "/sales/forecast", linkText: "Forecast report" },
   ];
 
   const recommendations = [
@@ -233,7 +233,7 @@ export default function SalesDashboard() {
                     fontSize: '11px',
                     fontWeight: '600'
                   }} 
-                  formatter={(value) => [`$${Number(value).toLocaleString()}`, "Revenue"]}
+                  formatter={(value) => [`$${Number(value || 0).toLocaleString()}`, "Revenue"]}
                 />
                 <Area 
                   type="monotone" 
@@ -410,13 +410,13 @@ export default function SalesDashboard() {
                         <div className="flex items-center gap-3">
                           <Avatar className="h-7 w-7 border border-white dark:border-white/5 shadow-sm">
                             <AvatarFallback className="text-[10px] font-bold bg-slate-100 text-slate-600">
-                              {customer.name.substring(0, 2).toUpperCase()}
+                              {(customer.name || "?").substring(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <span className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-500 transition-colors">{customer.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-bold text-emerald-600">${customer.revenue.toLocaleString()}</td>
+                      <td className="px-6 py-4 font-bold text-emerald-600">${(customer.revenue || 0).toLocaleString()}</td>
                       <td className="px-6 py-4 text-right">
                         <Badge variant="secondary" className="text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20">Active</Badge>
                       </td>
@@ -468,10 +468,10 @@ export default function SalesDashboard() {
                       <td className="px-6 py-4">
                          <span className="flex items-center gap-1.5 text-red-500 font-bold">
                            <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                           {new Date(inv.dueDate).toLocaleDateString()}
+                           {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "N/A"}
                          </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-bold text-slate-800 dark:text-slate-100">${inv.totalAmount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-800 dark:text-slate-100">${(inv.totalAmount || 0).toLocaleString()}</td>
                     </tr>
                   ))
                 ) : (

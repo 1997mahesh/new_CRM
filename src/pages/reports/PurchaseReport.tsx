@@ -165,7 +165,7 @@ export default function PurchaseReport() {
                       </div>
                    </div>
                    <div className="text-right">
-                      <p className="text-sm font-black text-slate-800">${po.amount.toLocaleString()}</p>
+                      <p className="text-sm font-black text-slate-800">${(po.amount || 0).toLocaleString()}</p>
                       <p className="text-[10px] text-slate-400 font-bold">{new Date(po.date).toLocaleDateString()}</p>
                    </div>
                 </div>

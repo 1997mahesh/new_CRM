@@ -17,8 +17,12 @@ import QuotationsPage from "./pages/sales/Quotations";
 import { QuotationCreatePage } from "./pages/sales/QuotationCreate";
 import { QuotationViewPage } from "./pages/sales/QuotationView";
 import OrdersPage from "./pages/sales/Orders";
+import OrderCreatePage from "./pages/sales/OrderCreate";
+import OrderViewPage from "./pages/sales/OrderView";
 import InvoicesPage from "./pages/sales/Invoices";
 import { InvoiceCreatePage } from "./pages/sales/InvoiceCreate";
+import { InvoiceViewPage } from "./pages/sales/InvoiceView";
+import { InvoiceRecordPaymentPage } from "./pages/sales/InvoiceRecordPayment";
 import PaymentsPage from "./pages/sales/Payments";
 import SalesForecastingPage from "./pages/sales/Forecast";
 import PurchaseDashboard from "./pages/purchase/PurchaseDashboard";
@@ -104,8 +108,14 @@ export default function App() {
           <Route path="/sales/quotations/:id" element={<QuotationViewPage />} />
           <Route path="/sales/quotations/:id/edit" element={<QuotationCreatePage />} />
           <Route path="/sales/orders" element={<OrdersPage />} />
+          <Route path="/sales/orders/new" element={<OrderCreatePage />} />
+          <Route path="/sales/orders/:id" element={<OrderViewPage />} />
+          <Route path="/sales/orders/:id/edit" element={<OrderCreatePage />} />
           <Route path="/sales/invoices" element={<InvoicesPage />} />
           <Route path="/sales/invoices/new" element={<InvoiceCreatePage />} />
+          <Route path="/sales/invoices/:id" element={<InvoiceViewPage />} />
+          <Route path="/sales/invoices/:id/record-payment" element={<InvoiceRecordPaymentPage />} />
+          <Route path="/sales/invoices/:id/edit" element={<InvoiceCreatePage />} />
           <Route path="/sales/payments" element={<PaymentsPage />} />
 
           {/* Purchase Module */}
