@@ -29,10 +29,14 @@ import userInvitationRoutes from '../modules/users/user-invitations.routes.js';
 import crmRoutes from '../modules/system/crm.routes.js';
 import todoRoutes from '../modules/todos/todos.routes.js';
 import todoGroupRoutes from '../modules/todo-groups/todo-groups.routes.js';
+import customerRoutes from '../modules/customers/customers.routes.js';
+import contactRoutes from '../modules/contacts/contacts.routes.js';
 
 router.use('/auth', authRoutes);
 router.use('/roles', roleRoutes);
 router.use('/users', userRoutes);
+router.use('/customers', customerRoutes);
+router.use('/contacts', contactRoutes);
 router.use('/user-invitations', userInvitationRoutes);
 router.use('/departments', departmentRoutes);
 router.use('/locations', locationRoutes);

@@ -41,6 +41,8 @@ model User {
   assignedLeads      Lead[]
   assignedTickets    Ticket[]
   todos              Todo[]    @relation("TodoAssignees")
+  assignedCustomers  Customer[] @relation("CustomerAssignee")
+  assignedContacts   Contact[]  @relation("ContactAssignee")
 
   @@map("users")
 }
@@ -275,6 +277,54 @@ model Lead {
   updatedAt       DateTime @updatedAt
 
   @@map("leads")
+}
+
+model Customer {
+  id              String   @id @default(uuid())
+  name            String
+  email           String?
+  phone           String?
+  type            String   @default("Company") // Company, Individual
+  status          String   @default("Active") // Active, Inactive, Lead, Prospect
+  source          String?  // Website, Referral, Direct, Cold Call, Partner
+  assignedUserId  String?
+  assignedUser    User?    @relation(fields: [assignedUserId], references: [id], name: "CustomerAssignee")
+  companyName     String?
+  nextFollowUp    DateTime?
+  notes           String?  @db.Text
+  address         String?  @db.Text
+  contacts        Contact[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("customers")
+}
+
+model Contact {
+  id              String   @id @default(uuid())
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  altPhone        String?
+  jobTitle        String?
+  department      String?
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  status          String    @default("Active") // Active, Inactive, Archived
+  isPrimary       Boolean   @default(false)
+  type            String    @default("Individual") // Individual, Agent, Contractor, Partner
+  assignedUserId  String?
+  assignedUser    User?     @relation(fields: [assignedUserId], references: [id], name: "ContactAssignee")
+  preferredCommunication String? @default("Email")
+  tags            String[]  @default([])
+  followUpDate    DateTime?
+  address         String?   @db.Text
+  notes           String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("contacts")
 }
 
 model Ticket {

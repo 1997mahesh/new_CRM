@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Plus, 
   Search, 
@@ -28,7 +28,7 @@ import {
   ArrowRight,
   GripVertical
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -80,13 +80,16 @@ const STAGES = [
   { id: "Lost", name: "Lost", color: "from-red-500 to-red-600" },
 ];
 
-export function LeadsPage() {
+export default function LeadsPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeLead, setActiveLead] = useState<any>(null);
+
+  const filterStage = searchParams.get("stage");
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -102,8 +105,12 @@ export function LeadsPage() {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/leads', { limit: 100, search });
-      if (response.success) {
+      const response = await api.get('/leads', { 
+        limit: 100, 
+        search,
+        pipelineStage: filterStage ? filterStage.charAt(0).toUpperCase() + filterStage.slice(1) : undefined
+      });
+      if (response.success && response.data) {
         setLeads(response.data.items || []);
       }
     } catch (error) {
@@ -115,7 +122,7 @@ export function LeadsPage() {
 
   useEffect(() => {
     fetchLeads();
-  }, [search]);
+  }, [search, filterStage]);
 
   const getLeadsByStage = (stageId: string) => {
     return leads.filter(lead => lead.pipelineStage === stageId)

@@ -132,10 +132,10 @@ export default function SalesReport() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        <ReportStatCard title="Total Revenue" value={`$${data?.stats.totalRevenue.toLocaleString()}`} trend="+12%" color="emerald" icon={TrendingUp} />
-        <ReportStatCard title="Paid Amount" value={`$${data?.stats.paidRevenue.toLocaleString()}`} color="blue" icon={FileText} />
-        <ReportStatCard title="Outstanding" value={`$${data?.stats.outstanding.toLocaleString()}`} color="rose" icon={Clock} />
-        <ReportStatCard title="Invoices" value={data?.invoices.length} subtitle="Generated in period" color="amber" icon={Target} />
+        <ReportStatCard title="Total Revenue" value={`$${(data?.stats?.totalRevenue || 0).toLocaleString()}`} trend="+12%" color="emerald" icon={TrendingUp} />
+        <ReportStatCard title="Paid Amount" value={`$${(data?.stats?.paidRevenue || 0).toLocaleString()}`} color="blue" icon={FileText} />
+        <ReportStatCard title="Outstanding" value={`$${(data?.stats?.outstanding || 0).toLocaleString()}`} color="rose" icon={Clock} />
+        <ReportStatCard title="Invoices" value={data?.invoices?.length || 0} subtitle="Generated in period" color="amber" icon={Target} />
       </div>
 
       {/* Tabs Section */}
@@ -155,7 +155,7 @@ export default function SalesReport() {
             <CardContent>
               <div className="h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={data?.invoices.map((inv: any) => ({ name: new Date(inv.dueDate).toLocaleDateString(), value: inv.amount }))} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <AreaChart data={(data?.invoices || []).map((inv: any) => ({ name: new Date(inv.dueDate).toLocaleDateString(), value: inv.amount }))} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
@@ -244,7 +244,7 @@ export default function SalesReport() {
                  </CardHeader>
                  <CardContent>
                     <div className="space-y-4">
-                       {data?.invoices.map((inv: any) => (
+                       {(data?.invoices || []).map((inv: any) => (
                          <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
                             <div>
                                <p className="text-sm font-bold text-slate-800">{inv.number}</p>

@@ -15,15 +15,23 @@ export class LocationsController extends BaseController {
   });
 
   create = this.handleRequest(async (req: Request) => {
+    const { id, status, ...data } = req.body;
     return await prisma.location.create({
-      data: req.body
+      data: {
+        ...data,
+        isActive: status === 'Active'
+      }
     });
   });
 
   update = this.handleRequest(async (req: Request) => {
+    const { id, status, ...data } = req.body;
     return await prisma.location.update({
       where: { id: req.params.id },
-      data: req.body
+      data: {
+        ...data,
+        isActive: status === 'Active'
+      }
     });
   });
 

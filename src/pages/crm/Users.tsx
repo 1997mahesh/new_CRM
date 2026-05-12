@@ -172,8 +172,10 @@ export default function UsersPage() {
       const query = new URLSearchParams(params).toString();
       
       const res = await api.get(`/users?${query}`);
-      if (res.success) {
+      if (res.success && Array.isArray(res.data)) {
         setUsers(res.data);
+      } else {
+        setUsers([]);
       }
     } catch (error) {
       toast.error("Failed to fetch users");

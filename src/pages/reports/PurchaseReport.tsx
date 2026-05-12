@@ -119,10 +119,10 @@ export default function PurchaseReport() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <ReportStatCard title="Total Spend" value={`$${data?.totalSpend.toLocaleString()}`} icon={DollarSign} color="blue" />
-        <ReportStatCard title="Purchase Orders" value={data?.purchaseOrders.length} subtitle="Orders in period" icon={Package} color="amber" />
-        <ReportStatCard title="Pending Fulfillment" value={data?.purchaseOrders.filter((po: any) => po.status === 'Pending').length} icon={Truck} color="indigo" />
-        <ReportStatCard title="Active Vendors" value={data?.topVendors.length} icon={Truck} color="emerald" />
+        <ReportStatCard title="Total Spend" value={`$${(data?.totalSpend || 0).toLocaleString()}`} icon={DollarSign} color="blue" />
+        <ReportStatCard title="Purchase Orders" value={data?.purchaseOrders?.length || 0} subtitle="Orders in period" icon={Package} color="amber" />
+        <ReportStatCard title="Pending Fulfillment" value={(data?.purchaseOrders || []).filter((po: any) => po.status === 'Pending').length} icon={Truck} color="indigo" />
+        <ReportStatCard title="Active Vendors" value={data?.topVendors?.length || 0} icon={Truck} color="emerald" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -150,7 +150,7 @@ export default function PurchaseReport() {
             <CardDescription>Tracking recent fulfillment workflow</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             {data?.purchaseOrders.map((po: any) => (
+             {(data?.purchaseOrders || []).map((po: any) => (
                 <div key={po.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-50 hover:bg-slate-50 transition-colors">
                    <div className="flex items-center gap-3">
                       <div className={cn(

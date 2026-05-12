@@ -61,6 +61,8 @@ export const SIDEBAR_MENU = [
     items: [
       { title: "Dashboard", path: "/sales/dashboard", icon: BarChart3 },
       { title: "Leads", path: "/sales/leads", icon: Target },
+      { title: "Pipeline", path: "/sales/pipeline", icon: Activity },
+      { title: "Forecast", path: "/sales/forecast", icon: BarChart2 },
       { title: "Quotations", path: "/sales/quotations", icon: FileText },
       { title: "Orders", path: "/sales/orders", icon: ShoppingCart },
       { title: "Invoices", path: "/sales/invoices", icon: Receipt },

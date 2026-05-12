@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   Plus, 
   Search, 
@@ -18,7 +18,8 @@ import {
   TrendingUp,
   DollarSign,
   ArrowUpRight,
-  Printer
+  Printer,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,42 +33,93 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-
-const INVOICES = [
-  { id: "INV-2024-001", customer: "Global Trade Corp", status: "Sent", issueDate: "May 01, 2024", dueDate: "May 15, 2024", total: "$4,250.00", dueAmount: "$4,250.00" },
-  { id: "INV-2024-002", customer: "TechFlow Solutions", status: "Paid", issueDate: "Apr 20, 2024", dueDate: "May 04, 2024", total: "$1,200.00", dueAmount: "$0.00" },
-  { id: "INV-2024-003", customer: "Nexa Logistics", status: "Overdue", issueDate: "Apr 15, 2024", dueDate: "Apr 30, 2024", total: "$8,500.00", dueAmount: "$8,500.00", overdueDays: 6 },
-  { id: "INV-2024-004", customer: "Zenith Design", status: "Partially Paid", issueDate: "Apr 28, 2024", dueDate: "May 12, 2024", total: "$15,000.00", dueAmount: "$7,500.00" },
-  { id: "INV-2024-005", customer: "Alpha Tech", status: "Draft", issueDate: "May 03, 2024", dueDate: "May 17, 2024", total: "$2,100.00", dueAmount: "$2,100.00" },
-  { id: "INV-2024-006", customer: "Blue Sky Media", status: "Sent", issueDate: "May 02, 2024", dueDate: "May 16, 2024", total: "$6,800.00", dueAmount: "$6,800.00" },
-  { id: "INV-2024-007", customer: "Prime Properties", status: "Void", issueDate: "Apr 10, 2024", dueDate: "Apr 24, 2024", total: "$3,400.00", dueAmount: "$0.00" },
-];
-
-const AGING_STATS = [
-  { label: "Current", value: "$45,200", color: "text-blue-600", bg: "bg-blue-50" },
-  { label: "1-30 Days", value: "$12,400", color: "text-amber-600", bg: "bg-amber-50" },
-  { label: "31-60 Days", value: "$8,200", color: "text-orange-600", bg: "bg-orange-50" },
-  { label: "60+ Days", value: "$4,500", color: "text-red-600", bg: "bg-red-50" },
-];
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 const STATUS_CONFIG: Record<string, { label: string, color: string }> = {
-  "Draft": { label: "Draft", color: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400" },
-  "Sent": { label: "Sent", color: "bg-blue-50 text-blue-600 dark:bg-blue-600/10 dark:text-blue-400" },
-  "Paid": { label: "Paid", color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-600/10 dark:text-emerald-400" },
-  "Partially Paid": { label: "Partial", color: "bg-cyan-50 text-cyan-600 dark:bg-cyan-600/10 dark:text-cyan-400" },
-  "Overdue": { label: "Overdue", color: "bg-red-50 text-red-600 dark:bg-red-600/10 dark:text-red-400" },
-  "Void": { label: "Void", color: "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-600" },
+  "draft": { label: "Draft", color: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400" },
+  "sent": { label: "Sent", color: "bg-blue-50 text-blue-600 dark:bg-blue-600/10 dark:text-blue-400" },
+  "paid": { label: "Paid", color: "bg-emerald-50 text-emerald-600 dark:bg-emerald-600/10 dark:text-emerald-400" },
+  "partial": { label: "Partial", color: "bg-cyan-50 text-cyan-600 dark:bg-cyan-600/10 dark:text-cyan-400" },
+  "overdue": { label: "Overdue", color: "bg-red-50 text-red-600 dark:bg-red-600/10 dark:text-red-400" },
+  "void": { label: "Void", color: "bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-600" },
+  "unpaid": { label: "Unpaid", color: "bg-amber-50 text-amber-600 dark:bg-amber-600/10 dark:text-amber-400" },
 };
 
 export default function InvoicesPage() {
-  const [activeTab, setActiveTab] = useState("all");
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  
+  const statusFilter = searchParams.get("status") || "all";
 
-  const filteredInvoices = activeTab === "all" 
-    ? INVOICES 
-    : INVOICES.filter(i => i.status.toLowerCase() === activeTab.toLowerCase().replace('partial', 'partially paid'));
+  useEffect(() => {
+    fetchInvoices();
+  }, [search, statusFilter]);
+
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const params: any = { search };
+      if (statusFilter !== "all") {
+        params.status = statusFilter;
+      }
+      const response = await api.get('/sales/invoices', params);
+      if (response.success) {
+        setInvoices(response.data || []);
+      }
+    } catch (error) {
+      toast.error("Failed to fetch invoices");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTabChange = (value: string) => {
+    setSearchParams({ status: value });
+  };
+
+  const agingSummary = useMemo(() => {
+    const summary = {
+      current: 0,
+      oneToThirty: 0,
+      thirtyToSixty: 0,
+      sixtyPlus: 0,
+      totalOverdue: 0
+    };
+
+    invoices.forEach(inv => {
+      if (inv.status.toLowerCase() === "paid") return;
+      
+      const dueDate = new Date(inv.dueDate);
+      const today = new Date();
+      const diffDays = Math.ceil((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        summary.current += inv.balance || 0;
+      } else {
+        summary.totalOverdue += inv.balance || 0;
+        if (diffDays <= 30) summary.oneToThirty += inv.balance || 0;
+        else if (diffDays <= 60) summary.thirtyToSixty += inv.balance || 0;
+        else summary.sixtyPlus += inv.balance || 0;
+      }
+    });
+
+    return summary;
+  }, [invoices]);
+
+  const AGING_STATS = [
+    { label: "Current", value: `$${agingSummary.current.toLocaleString()}`, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "1-30 Days", value: `$${agingSummary.oneToThirty.toLocaleString()}`, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "31-60 Days", value: `$${agingSummary.thirtyToSixty.toLocaleString()}`, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "60+ Days", value: `$${agingSummary.sixtyPlus.toLocaleString()}`, color: "text-red-600", bg: "bg-red-50" },
+  ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-12">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-12 p-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
@@ -107,20 +159,26 @@ export default function InvoicesPage() {
       {/* Tabs and Actions Row */}
       <div className="flex flex-col space-y-4">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-          <Tabs defaultValue="all" className="w-full lg:w-auto" onValueChange={setActiveTab}>
+          <Tabs value={statusFilter} className="w-full lg:w-auto" onValueChange={handleTabChange}>
              <TabsList className="bg-slate-100 dark:bg-white/5 p-1 h-11 rounded-xl w-full lg:w-auto overflow-x-auto scrollbar-none flex gap-1">
                <TabsTrigger value="all" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">All</TabsTrigger>
                <TabsTrigger value="sent" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Sent</TabsTrigger>
                <TabsTrigger value="paid" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Paid</TabsTrigger>
                <TabsTrigger value="partial" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Partial</TabsTrigger>
                <TabsTrigger value="overdue" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Overdue</TabsTrigger>
+               <TabsTrigger value="unpaid" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Unpaid</TabsTrigger>
                <TabsTrigger value="draft" className="rounded-lg text-xs font-bold uppercase tracking-wider px-4 flex-shrink-0">Draft</TabsTrigger>
              </TabsList>
           </Tabs>
           <div className="flex items-center gap-2 w-full lg:w-auto">
              <div className="relative flex-1 lg:w-64 group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                <Input placeholder="Search invoice..." className="pl-10 h-11 border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d] rounded-xl shadow-soft" />
+                <Input 
+                  placeholder="Search invoice..." 
+                  className="pl-10 h-11 border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d] rounded-xl shadow-soft" 
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
              </div>
              <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d]">
                <Filter className="h-4 w-4 text-slate-400" />
@@ -144,57 +202,62 @@ export default function InvoicesPage() {
              </tr>
            </thead>
            <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs">
-             {filteredInvoices.map((inv) => (
+             {loading ? (
+               <tr>
+                 <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                    Loading invoices...
+                 </td>
+               </tr>
+             ) : invoices.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-400 uppercase tracking-widest font-bold text-[10px]">No invoices found</td>
+                </tr>
+             ) : invoices.map((inv) => (
                <tr key={inv.id} className={cn(
                  "hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group",
-                 inv.status === "Overdue" && "bg-red-50/10 dark:bg-red-500/[0.02]"
+                 inv.status.toLowerCase() === "overdue" && "bg-red-50/10 dark:bg-red-500/[0.02]"
                )}>
                  <td className="px-6 py-5">
                     <div className="flex items-center gap-3">
                        <div className="h-10 w-10 flex items-center justify-center bg-blue-50 dark:bg-blue-600/10 text-blue-600 dark:text-blue-400 rounded-xl group-hover:rotate-6 transition-transform">
                           <Receipt className="h-5 w-5" />
                        </div>
-                       <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">{inv.id}</span>
+                       <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">{inv.number}</span>
                     </div>
                  </td>
                  <td className="px-6 py-5">
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{inv.customer}</span>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{inv.customerName}</span>
                  </td>
                  <td className="px-6 py-5">
                     <div className="flex flex-col gap-1">
-                       <Badge variant="outline" className={cn("text-[9px] font-bold uppercase tracking-tighter px-2 h-5 border-none w-fit", STATUS_CONFIG[inv.status].color)}>
+                       <Badge variant="outline" className={cn("text-[9px] font-bold uppercase tracking-tighter px-2 h-5 border-none w-fit", STATUS_CONFIG[inv.status.toLowerCase()]?.color || "bg-slate-100 text-slate-500")}>
                          {inv.status}
                        </Badge>
-                       {inv.overdueDays && (
-                         <span className="text-[9px] font-bold text-red-500 italic flex items-center gap-1">
-                            <AlertCircle className="h-2 w-2" />
-                            {inv.overdueDays} days late
-                         </span>
-                       )}
                     </div>
                  </td>
                  <td className="px-6 py-5">
                     <div className="flex flex-col gap-0.5">
                        <div className="flex items-center gap-2 text-slate-400">
                           <Clock className="h-3 w-3" />
-                          <span className="text-[10px] font-medium">{inv.issueDate}</span>
+                          <span className="text-[10px] font-medium">{new Date(inv.issueDate).toLocaleDateString()}</span>
                        </div>
                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
                           <Calendar className="h-3 w-3 text-blue-500" />
-                          <span className={cn("text-[10px] font-bold", inv.status === "Overdue" && "text-red-500 underline underline-offset-2")}>
-                             {inv.dueDate}
+                          <span className={cn("text-[10px] font-bold", inv.status.toLowerCase() === "overdue" && "text-red-500 underline underline-offset-2")}>
+                             {new Date(inv.dueDate).toLocaleDateString()}
                           </span>
                        </div>
                     </div>
                  </td>
                  <td className="px-6 py-5">
-                    <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono tracking-tighter italic">{inv.total}</span>
+                    <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono tracking-tighter italic">${inv.totalAmount.toLocaleString()}</span>
                  </td>
                  <td className="px-6 py-5">
                     <span className={cn(
                       "text-[13px] font-bold font-mono tracking-tighter italic",
-                      inv.dueAmount === "$0.00" ? "text-emerald-600" : "text-blue-600 dark:text-blue-400"
-                    )}>{inv.dueAmount}</span>
+                      inv.balance === 0 ? "text-emerald-600" : "text-blue-600 dark:text-blue-400"
+                    )}>${inv.balance?.toLocaleString() || "0"}</span>
                  </td>
                  <td className="px-6 py-5 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">

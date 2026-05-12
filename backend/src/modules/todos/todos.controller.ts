@@ -50,7 +50,7 @@ export class TodosController extends BaseController {
   });
 
   create = this.handleRequest(async (req: Request) => {
-    const { assigneeIds, ...data } = req.body;
+    const { id, assigneeIds, ...data } = req.body;
     return await prisma.todo.create({
       data: {
         ...data,
@@ -66,7 +66,7 @@ export class TodosController extends BaseController {
   });
 
   update = this.handleRequest(async (req: Request) => {
-    const { assigneeIds, ...data } = req.body;
+    const { id, assigneeIds, ...data } = req.body;
     return await prisma.todo.update({
       where: { id: req.params.id },
       data: {

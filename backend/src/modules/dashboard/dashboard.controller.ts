@@ -11,8 +11,8 @@ export class DashboardController extends BaseController {
     const [
       totalLeads,
       newLeadsToday,
-      openInvoices,
-      overdueInvoices,
+      openInvoicesCount,
+      overdueInvoicesCount,
       totalRevenuePaid,
       totalRevenuePending,
       openTickets,
@@ -22,6 +22,11 @@ export class DashboardController extends BaseController {
       totalAPOutstanding,
       pendingTasks,
       completedTasks,
+      pipelineValue,
+      leadsByStage,
+      topCustomers,
+      overdueInvoicesList,
+      totalRevenueYear,
     ] = await Promise.all([
       prisma.lead.count(),
       prisma.lead.count({
@@ -34,8 +39,7 @@ export class DashboardController extends BaseController {
       prisma.invoice.count({ where: { status: 'unpaid' } }),
       prisma.invoice.count({ 
         where: { 
-          status: 'unpaid',
-          dueDate: { lt: new Date() }
+          status: 'overdue',
         } 
       }),
       prisma.invoice.aggregate({
@@ -70,7 +74,47 @@ export class DashboardController extends BaseController {
       }),
       prisma.todo.count({ where: { status: { in: ['Pending', 'In Progress'] } } }),
       prisma.todo.count({ where: { status: 'Completed' } }),
+      prisma.lead.aggregate({
+        _sum: { value: true },
+        where: { status: 'Open' }
+      }),
+      prisma.lead.groupBy({
+        by: ['pipelineStage'],
+        _count: true
+      }),
+      prisma.invoice.groupBy({
+        by: ['customerId', 'customerName'],
+        _sum: { totalAmount: true },
+        where: { status: 'paid' },
+        orderBy: { _sum: { totalAmount: 'desc' } },
+        take: 5
+      }),
+      prisma.invoice.findMany({
+        where: { status: 'overdue' },
+        orderBy: { dueDate: 'asc' },
+        take: 5
+      }),
+      prisma.invoice.aggregate({
+        _sum: { totalAmount: true },
+        where: {
+          status: 'paid',
+          issueDate: {
+            gte: new Date(now.getFullYear(), 0, 1)
+          }
+        }
+      })
     ]);
+
+    // Format leads by stage
+    const stages = ['New', 'Contacted', 'Qualified', 'Proposal', 'Negotiation', 'Won', 'Lost'];
+    const formattedLeadsByStage = stages.map(stage => {
+      const match = leadsByStage.find(l => l.pipelineStage === stage);
+      return {
+        stage,
+        count: match ? match._count : 0,
+        percentage: match ? Math.round((match._count / (totalLeads || 1)) * 100) : 0
+      };
+    });
 
     // Mock revenue growth for chart (normally would be aggregated query)
     const mockRevenueData = [
@@ -91,9 +135,11 @@ export class DashboardController extends BaseController {
     return {
       stats: {
         revenueMTD: totalRevenuePaid._sum.totalAmount || 0,
-        openInvoices,
-        overdueInvoices,
+        revenueYTD: totalRevenueYear._sum.totalAmount || 0,
+        openInvoices: openInvoicesCount,
+        overdueInvoices: overdueInvoicesCount,
         pipelineLeads: totalLeads,
+        pipelineValue: pipelineValue._sum.value || 0,
         newLeadsToday,
         openTickets,
         overdueTickets,
@@ -103,9 +149,17 @@ export class DashboardController extends BaseController {
         apOutstanding: totalAPOutstanding._sum.amount || 0,
         spendMTD: (totalExpenses._sum.amount || 0) + (totalAPOutstanding._sum.amount || 0),
         pendingTasks,
-        completedTasks
+        completedTasks,
+        forecast: (pipelineValue._sum.value || 0) * 0.2 // Simplified forecast
       },
-      revenueChart: mockRevenueData
+      revenueChart: mockRevenueData,
+      leadsByStage: formattedLeadsByStage,
+      topCustomers: topCustomers.map(c => ({
+        name: c.customerName || 'Unknown',
+        id: c.customerId,
+        revenue: c._sum.totalAmount || 0
+      })),
+      overdueInvoicesList: overdueInvoicesList
     };
   });
 }

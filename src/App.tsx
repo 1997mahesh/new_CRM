@@ -9,7 +9,7 @@ import { AppLayout } from "./components/AppLayout";
 import { DashboardPage } from "./pages/Dashboard";
 import { LoginPage } from "./pages/Login";
 import SalesDashboard from "./pages/sales/SalesDashboard";
-import { LeadsPage } from "./pages/sales/Leads";
+import LeadsPage from "./pages/sales/Leads";
 import { LeadCreatePage } from "./pages/sales/LeadCreate";
 import { LeadEditPage } from "./pages/sales/LeadEdit";
 import QuotationsPage from "./pages/sales/Quotations";
@@ -93,6 +93,8 @@ export default function App() {
           <Route path="/sales/leads" element={<LeadsPage />} />
           <Route path="/sales/leads/new" element={<LeadCreatePage />} />
           <Route path="/sales/leads/:id/edit" element={<LeadEditPage />} />
+          <Route path="/sales/pipeline" element={<PlaceholderPage title="Pipeline Management" />} />
+          <Route path="/sales/forecast" element={<PlaceholderPage title="Sales Forecasting" />} />
           <Route path="/sales/quotations" element={<QuotationsPage />} />
           <Route path="/sales/orders" element={<OrdersPage />} />
           <Route path="/sales/invoices" element={<InvoicesPage />} />
@@ -125,6 +127,7 @@ export default function App() {
 
           {/* Reports Module */}
           <Route path="/reports/sales" element={<SalesReport />} />
+          <Route path="/sales/reports/revenue" element={<SalesReport />} />
           <Route path="/reports/purchase" element={<PurchaseReport />} />
           <Route path="/reports/stock" element={<StockReport />} />
           <Route path="/reports/finance" element={<FinanceReport />} />

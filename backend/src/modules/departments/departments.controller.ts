@@ -15,15 +15,23 @@ export class DepartmentsController extends BaseController {
   });
 
   create = this.handleRequest(async (req: Request) => {
+    const { id, status, ...data } = req.body;
     return await prisma.department.create({
-      data: req.body
+      data: {
+        ...data,
+        isActive: status === 'Active'
+      }
     });
   });
 
   update = this.handleRequest(async (req: Request) => {
+    const { id, status, ...data } = req.body;
     return await prisma.department.update({
       where: { id: req.params.id },
-      data: req.body
+      data: {
+        ...data,
+        isActive: status === 'Active'
+      }
     });
   });
 

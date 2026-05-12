@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -16,7 +16,10 @@ import {
   Search,
   MessageSquare,
   ChevronRight,
-  ArrowRight
+  ArrowRight,
+  Zap,
+  Mail,
+  FileText
 } from "lucide-react";
 import { 
   XAxis, 
@@ -34,49 +37,87 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
-
-const REVENUE_DATA = [
-  { month: "Jan", revenue: 45000 },
-  { month: "Feb", revenue: 52000 },
-  { month: "Mar", revenue: 48000 },
-  { month: "Apr", revenue: 61000 },
-  { month: "May", revenue: 58000 },
-  { month: "Jun", revenue: 72000 },
-  { month: "Jul", revenue: 85000 },
-  { month: "Aug", revenue: 81000 },
-  { month: "Sep", revenue: 94000 },
-  { month: "Oct", revenue: 105000 },
-  { month: "Nov", revenue: 98000 },
-  { month: "Dec", revenue: 120000 },
-];
-
-const LEADS_BY_STAGE = [
-  { stage: "New", count: 45, color: "bg-blue-500", percentage: 100 },
-  { stage: "Contacted", count: 32, color: "bg-indigo-500", percentage: 80 },
-  { stage: "Qualified", count: 24, color: "bg-cyan-500", percentage: 65 },
-  { stage: "Proposal", count: 18, color: "bg-purple-500", percentage: 50 },
-  { stage: "Negotiation", count: 12, color: "bg-amber-500", percentage: 35 },
-  { stage: "Won", count: 8, color: "bg-emerald-500", percentage: 20 },
-  { stage: "Lost", count: 15, color: "bg-red-500", percentage: 30 },
-];
-
-const TOP_CUSTOMERS = [
-  { name: "Global Trade Corp", revenue: "$124,500.00", status: "Premium" },
-  { name: "TechFlow Solutions", revenue: "$98,400.00", status: "Gold" },
-  { name: "Nexa Logistics", revenue: "$85,200.00", status: "Gold" },
-  { name: "Zenith Design", revenue: "$72,150.00", status: "Silver" },
-  { name: "Alpha Tech", revenue: "$65,000.00", status: "Silver" },
-];
-
-const OVERDUE_INVOICES = [
-  { id: "INV-2024-001", customer: "Blue Sky Media", date: "May 1, 2024", days: 5, amount: "$4,250.00", status: "Overdue" },
-  { id: "INV-2024-004", customer: "Prime Properties", date: "Apr 25, 2024", days: 11, amount: "$8,100.00", status: "Critical" },
-  { id: "INV-2024-009", customer: "Omega Systems", date: "May 3, 2024", days: 3, amount: "$2,400.00", status: "Overdue" },
-];
+import { useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "motion/react";
 
 export default function SalesDashboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [chartType, setChartType] = useState<"monthly" | "quarterly">("monthly");
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/dashboard/stats");
+      if (res.success) {
+        setData(res.data);
+      }
+    } catch (error) {
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const revenueData = useMemo(() => {
+    if (!data?.revenueChart) return [];
+    if (chartType === "monthly") return data.revenueChart;
+    
+    // Aggregating to quarterly
+    const quarterly = [
+      { month: "Q1", revenue: data.revenueChart.slice(0, 3).reduce((acc: number, curr: any) => acc + curr.revenue, 0) },
+      { month: "Q2", revenue: data.revenueChart.slice(3, 6).reduce((acc: number, curr: any) => acc + curr.revenue, 0) },
+      { month: "Q3", revenue: data.revenueChart.slice(6, 9).reduce((acc: number, curr: any) => acc + curr.revenue, 0) },
+      { month: "Q4", revenue: data.revenueChart.slice(9, 12).reduce((acc: number, curr: any) => acc + curr.revenue, 0) },
+    ];
+    return quarterly;
+  }, [data, chartType]);
+
+  if (loading) {
+    return (
+      <div className="space-y-8 p-6 animate-pulse">
+        <div className="flex justify-between items-center h-16 bg-slate-100 dark:bg-white/5 rounded-xl"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+          {[...Array(7)].map((_, i) => (
+            <div key={i} className="h-28 bg-slate-100 dark:bg-white/5 rounded-xl"></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-[400px] bg-slate-100 dark:bg-white/5 rounded-xl"></div>
+          <div className="h-[400px] bg-slate-100 dark:bg-white/5 rounded-xl"></div>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = data?.stats || {};
+
+  const kpiCards = [
+    { label: "Revenue MTD", value: `$${stats.revenueMTD?.toLocaleString()}`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50", route: "/sales/invoices", linkText: "View invoices" },
+    { label: "Revenue YTD", value: `$${stats.revenueYTD?.toLocaleString()}`, icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50", route: "/sales/reports/revenue", linkText: "Revenue report" },
+    { label: "Open Invoices", value: stats.openInvoices?.toString(), icon: Receipt, color: "text-amber-600", bg: "bg-amber-50", route: "/sales/invoices?status=unpaid", linkText: "Manage invoices" },
+    { label: "Overdue", value: stats.overdueInvoices?.toString(), icon: AlertCircle, color: "text-red-600", bg: "bg-red-50", route: "/sales/invoices?status=overdue", linkText: "Recover payments" },
+    { label: "Pipeline Leads", value: stats.pipelineLeads?.toString(), icon: Target, color: "text-indigo-600", bg: "bg-indigo-50", route: "/sales/leads", linkText: "Open leads" },
+    { label: "Pipeline Value", value: `$${(stats.pipelineValue / 1000000).toFixed(1)}M`, icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50", route: "/sales/pipeline", linkText: "Pipeline view" },
+    { label: "Forecast", value: `$${(stats.forecast / 1000).toFixed(0)}k`, icon: Clock, color: "text-cyan-600", bg: "bg-cyan-50", route: "/sales/forecast", linkText: "Forecast report" },
+  ];
+
+  const recommendations = [
+    { title: "Prepare Proposal", desc: "For Global Trade Corp - High priority", action: "Go to Lead", priority: "High", route: "/sales/leads" },
+    { title: "Follow up lead", desc: "Nexa Logistics hasn't responded in 3 days", action: "Send Email", priority: "Medium", route: "#" },
+    { title: "Capture Requirements", desc: "Alpha Tech needs software spec doc", action: "Add Note", priority: "Normal", route: "#" },
+    { title: "Push Deal to Close", desc: "Zenith Design is in negotiation stage", action: "View Deal", priority: "Urgent", route: "/sales/pipeline" },
+  ];
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 animate-in fade-in duration-500 pb-12">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
@@ -84,10 +125,17 @@ export default function SalesDashboard() {
           <p className="text-slate-500 dark:text-slate-400 text-sm">Real-time sales performance and business insights.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 font-bold h-10 px-4 rounded-lg shadow-sm">
+          <Button 
+            variant="outline" 
+            onClick={() => navigate("/sales/invoices")}
+            className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 font-bold h-10 px-4 rounded-lg shadow-sm"
+          >
             Invoices
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-lg shadow-premium">
+          <Button 
+            onClick={() => navigate("/sales/leads")}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-lg shadow-premium"
+          >
             Leads
           </Button>
         </div>
@@ -95,27 +143,27 @@ export default function SalesDashboard() {
 
       {/* Top Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-        {[
-          { label: "Revenue MTD", value: "$42,500", icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Revenue YTD", value: "$524,000", icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Open Invoices", value: "24", icon: Receipt, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Overdue", value: "$8,450", icon: AlertCircle, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Pipeline Leads", value: "156", icon: Target, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { label: "Pipeline Value", value: "$1.2M", icon: BarChart3, color: "text-purple-600", bg: "bg-purple-50" },
-          { label: "Forecast", value: "$85k", icon: Clock, color: "text-cyan-600", bg: "bg-cyan-50" },
-        ].map((stat, idx) => (
-          <div key={idx} className="stat-card flex flex-col justify-between p-4 min-h-[110px]">
+        {kpiCards.map((stat, idx) => (
+          <motion.div 
+            key={idx} 
+            whileHover={{ y: -4, scale: 1.02 }}
+            onClick={() => navigate(stat.route)}
+            className="stat-card flex flex-col justify-between p-4 min-h-[130px] cursor-pointer group transition-all hover:shadow-lg dark:hover:shadow-blue-900/10"
+          >
              <div className="flex items-center justify-between mb-2">
                <div className={cn("p-1.5 rounded-lg", stat.bg, "dark:bg-white/5")}>
                  <stat.icon className={cn("h-4 w-4", stat.color)} />
                </div>
-               <ArrowUpRight className="h-3 w-3 text-slate-300" />
+               <ArrowUpRight className="h-3 w-3 text-slate-300 group-hover:text-blue-500 transition-colors" />
              </div>
              <div>
                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{stat.label}</p>
                <p className="text-xl font-bold mt-0.5 text-slate-800 dark:text-slate-100">{stat.value}</p>
+               <div className="mt-2 text-[10px] font-semibold text-blue-600 hover:underline flex items-center gap-1">
+                 {stat.linkText} <ArrowRight className="h-2.5 w-2.5" />
+               </div>
              </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
@@ -129,13 +177,33 @@ export default function SalesDashboard() {
               <p className="text-xs text-slate-500 dark:text-slate-400">Total sales revenue across the last 12 months</p>
             </div>
             <div className="flex bg-slate-100 dark:bg-white/5 p-1 rounded-lg">
-               <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase tracking-wider px-3 bg-white dark:bg-white/10 shadow-sm">Monthly</Button>
-               <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold uppercase tracking-wider px-3 text-slate-400">Quarterly</Button>
+               <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setChartType("monthly")}
+                className={cn(
+                  "h-7 text-[10px] font-bold uppercase tracking-wider px-3 transition-all",
+                  chartType === "monthly" ? "bg-white dark:bg-white/10 shadow-sm" : "text-slate-400"
+                )}
+               >
+                 Monthly
+               </Button>
+               <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setChartType("quarterly")}
+                className={cn(
+                  "h-7 text-[10px] font-bold uppercase tracking-wider px-3 transition-all",
+                  chartType === "quarterly" ? "bg-white dark:bg-white/10 shadow-sm" : "text-slate-400"
+                )}
+               >
+                 Quarterly
+               </Button>
             </div>
           </div>
           <div className="h-[320px] w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={REVENUE_DATA}>
+              <AreaChart data={revenueData}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
@@ -165,6 +233,7 @@ export default function SalesDashboard() {
                     fontSize: '11px',
                     fontWeight: '600'
                   }} 
+                  formatter={(value) => [`$${Number(value).toLocaleString()}`, "Revenue"]}
                 />
                 <Area 
                   type="monotone" 
@@ -173,6 +242,7 @@ export default function SalesDashboard() {
                   strokeWidth={3}
                   fillOpacity={1} 
                   fill="url(#colorRevenue)" 
+                  animationDuration={1000}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -184,24 +254,38 @@ export default function SalesDashboard() {
           <h2 className="font-bold text-slate-800 dark:text-slate-100 mb-1">Leads by Stage</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-6">Pipeline distribution by conversion stage</p>
           <div className="space-y-4">
-            {LEADS_BY_STAGE.map((stage, idx) => (
-              <div key={idx} className="space-y-1.5">
+            {(data?.leadsByStage || []).map((stage: any, idx: number) => (
+              <div 
+                key={idx} 
+                className="space-y-1.5 cursor-pointer group"
+                onClick={() => navigate(`/sales/leads?stage=${stage.stage.toLowerCase()}`)}
+              >
                 <div className="flex justify-between items-center text-[11px] font-bold">
-                  <span className="text-slate-600 dark:text-slate-400">{stage.stage}</span>
+                  <span className="text-slate-600 dark:text-slate-400 group-hover:text-blue-500 transition-colors">{stage.stage}</span>
                   <span className="text-slate-800 dark:text-slate-100">{stage.count}</span>
                 </div>
                 <div className="h-2 w-full bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                  <div 
-                    className={cn("h-full rounded-full transition-all duration-1000", stage.color)} 
-                    style={{ width: `${stage.percentage}%` }}
-                  ></div>
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${stage.percentage}%` }}
+                    transition={{ duration: 1, delay: idx * 0.1 }}
+                    className={cn(
+                      "h-full rounded-full transition-all", 
+                      stage.stage === 'New' ? "bg-blue-500" :
+                      stage.stage === 'Contacted' ? "bg-indigo-500" :
+                      stage.stage === 'Qualified' ? "bg-cyan-500" :
+                      stage.stage === 'Proposal' ? "bg-purple-500" :
+                      stage.stage === 'Negotiation' ? "bg-amber-500" :
+                      stage.stage === 'Won' ? "bg-emerald-500" : "bg-red-500"
+                    )} 
+                  ></motion.div>
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-8 p-4 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5">
              <div className="flex items-center gap-2 mb-2">
-               <Info className="h-3.5 w-3.5 text-blue-500" />
+               <Zap className="h-3.5 w-3.5 text-blue-500" />
                <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Pipeline Insights</p>
              </div>
              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
@@ -221,16 +305,21 @@ export default function SalesDashboard() {
            </h2>
            <div className="space-y-4">
              {[
-               { label: "Opportunities closing soon", value: "8 Cards", color: "text-blue-600" },
-               { label: "Top lost reason", value: "Pricing", color: "text-red-500" },
-               { label: "Weighted forecast summary", value: "$450k", color: "text-emerald-600" },
-               { label: "Active pipeline summary", value: "156 Leads", color: "text-indigo-600" },
-               { label: "Largest opportunity cluster", value: "Enterprise", color: "text-purple-600" },
+               { label: "Opportunities closing soon", value: "8 Cards", color: "text-blue-600", route: "/sales/opportunities?closingSoon=true" },
+               { label: "Top lost reason", value: "Pricing", color: "text-red-500", route: "/sales/reports/loss-analysis" },
+               { label: "Weighted forecast summary", value: `$${((stats.pipelineValue || 0) * 0.3 / 1000).toFixed(0)}k`, color: "text-emerald-600", route: "/sales/forecast" },
+               { label: "Active pipeline summary", value: `${stats.pipelineLeads || 0} Leads`, color: "text-indigo-600", route: "/sales/pipeline" },
+               { label: "Largest opportunity cluster", value: "Enterprise", color: "text-purple-600", route: "/sales/opportunities?segment=enterprise" },
              ].map((insight, idx) => (
-               <div key={idx} className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 group hover:bg-white dark:hover:bg-white/10 hover:shadow-sm transition-all">
+               <motion.div 
+                key={idx} 
+                whileHover={{ x: 4 }}
+                onClick={() => navigate(insight.route)}
+                className="flex items-center justify-between p-3 bg-slate-50/50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/5 group hover:bg-white dark:hover:bg-white/10 hover:shadow-sm transition-all cursor-pointer"
+               >
                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-tight">{insight.label}</span>
                  <span className={cn("text-xs font-bold", insight.color)}>{insight.value}</span>
-               </div>
+               </motion.div>
              ))}
            </div>
         </Card>
@@ -242,31 +331,43 @@ export default function SalesDashboard() {
              AI-driven Recommendations
            </h2>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-             {[
-               { title: "Prepare Proposal", desc: "For Global Trade Corp - High priority", action: "Go to Lead", priority: "High" },
-               { title: "Follow up lead", desc: "Nexa Logistics hasn't responded in 3 days", action: "Send Email", priority: "Medium" },
-               { title: "Capture Requirements", desc: "Alpha Tech needs software spec doc", action: "Add Note", priority: "Normal" },
-               { title: "Push Deal to Close", desc: "Zenith Design is in negotiation stage", action: "View Deal", priority: "Urgent" },
-             ].map((rec, idx) => (
+             {recommendations.map((rec, idx) => (
                <Card key={idx} className="group p-4 border-slate-200 dark:border-white/5 bg-white dark:bg-[#211c1f] hover:border-blue-200 dark:hover:border-blue-500/30 transition-all shadow-sm">
                  <div className="flex justify-between items-start mb-3">
                    <Badge className={cn(
                      "text-[9px] font-bold uppercase tracking-tighter h-5",
-                     rec.priority === "Urgent" ? "bg-red-50 text-red-600" : 
-                     rec.priority === "High" ? "bg-orange-50 text-orange-600" :
-                     "bg-blue-50 text-blue-600"
+                     rec.priority === "Urgent" ? "bg-red-50 text-red-600 dark:bg-red-950/30" : 
+                     rec.priority === "High" ? "bg-orange-50 text-orange-600 dark:bg-orange-950/30" :
+                     "bg-blue-50 text-blue-600 dark:bg-blue-950/30"
                    )}>
                      {rec.priority}
                    </Badge>
-                   <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                     <ArrowRight className="h-4 w-4 text-blue-500" />
+                   <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-blue-50 dark:bg-white/5 text-blue-500"
+                    onClick={() => toast.info(`Recommendation: ${rec.title}`)}
+                   >
+                     <ArrowRight className="h-4 w-4" />
                    </Button>
                  </div>
                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 mb-1">{rec.title}</h3>
                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4">{rec.desc}</p>
-                 <Button variant="ghost" className="h-8 w-full border border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10">
-                   {rec.action}
-                 </Button>
+                 <div className="flex gap-2">
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => navigate(rec.route)}
+                      className="h-8 flex-1 border border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10"
+                    >
+                      {rec.action}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-500">
+                      <Mail className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-500">
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                 </div>
                </Card>
              ))}
            </div>
@@ -274,12 +375,19 @@ export default function SalesDashboard() {
       </div>
 
       {/* Bottom Section Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Customers */}
         <Card className="bg-white dark:bg-[#211c1f] rounded-2xl border border-slate-200 dark:border-white/5 shadow-soft dark:shadow-2xl overflow-hidden">
           <div className="p-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Top Customers by Revenue</h2>
-            <Button variant="ghost" size="sm" className="h-8 text-[11px] font-bold text-blue-600 hover:bg-blue-50">View All</Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate("/crm/customers")}
+              className="h-8 text-[11px] font-bold text-blue-600 hover:bg-blue-50"
+            >
+              View All
+            </Button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -287,19 +395,38 @@ export default function SalesDashboard() {
                 <tr className="text-[10px] uppercase tracking-widest text-slate-400 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
                   <th className="px-6 py-4">Customer Name</th>
                   <th className="px-6 py-4">Revenue</th>
-                  <th className="px-6 py-4 text-right">Tier</th>
+                  <th className="px-6 py-4 text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs">
-                {TOP_CUSTOMERS.map((customer, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-white/[0.02] transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{customer.name}</td>
-                    <td className="px-6 py-4 font-bold text-emerald-600">{customer.revenue}</td>
-                    <td className="px-6 py-4 text-right">
-                      <Badge variant="secondary" className="text-[9px] font-bold bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400">{customer.status}</Badge>
-                    </td>
+                {(data?.topCustomers || []).length > 0 ? (
+                  data.topCustomers.map((customer: any, idx: number) => (
+                    <tr 
+                      key={idx} 
+                      className="hover:bg-slate-50/30 dark:hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                      onClick={() => navigate(`/crm/customers?id=${customer.id}`)}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-7 w-7 border border-white dark:border-white/5 shadow-sm">
+                            <AvatarFallback className="text-[10px] font-bold bg-slate-100 text-slate-600">
+                              {customer.name.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-500 transition-colors">{customer.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-emerald-600">${customer.revenue.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-right">
+                        <Badge variant="secondary" className="text-[9px] font-bold bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20">Active</Badge>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-8 text-center text-slate-400">No customer data found</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
@@ -309,7 +436,14 @@ export default function SalesDashboard() {
         <Card className="bg-white dark:bg-[#211c1f] rounded-2xl border border-slate-200 dark:border-white/5 shadow-soft dark:shadow-2xl overflow-hidden">
           <div className="p-4 border-b border-slate-100 dark:border-white/5 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100">Overdue Invoices</h2>
-            <Button variant="ghost" size="sm" className="h-8 text-[11px] font-bold text-red-600 hover:bg-red-50">Collect Payments</Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate("/sales/payments")}
+              className="h-8 text-[11px] font-bold text-red-600 hover:bg-red-50"
+            >
+              Collect Payments
+            </Button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -317,32 +451,49 @@ export default function SalesDashboard() {
                 <tr className="text-[10px] uppercase tracking-widest text-slate-400 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
                   <th className="px-6 py-4">Invoice</th>
                   <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Overdue</th>
+                  <th className="px-6 py-4">Due Date</th>
                   <th className="px-6 py-4 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs">
-                {OVERDUE_INVOICES.map((inv, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-white/[0.02] transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200">{inv.id}</td>
-                    <td className="px-6 py-4 font-medium text-slate-600 dark:text-slate-400">{inv.customer}</td>
-                    <td className="px-6 py-4">
-                       <span className="flex items-center gap-1.5 text-red-500 font-bold">
-                         <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
-                         {inv.days} days
-                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-slate-800 dark:text-slate-100">{inv.amount}</td>
+                {(data?.overdueInvoicesList || []).length > 0 ? (
+                  data.overdueInvoicesList.map((inv: any, idx: number) => (
+                    <tr 
+                      key={idx} 
+                      className="hover:bg-slate-50/30 dark:hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                      onClick={() => navigate(`/sales/invoices`)}
+                    >
+                      <td className="px-6 py-4 font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-500 transition-colors">{inv.number}</td>
+                      <td className="px-6 py-4 font-medium text-slate-600 dark:text-slate-400">{inv.customerName}</td>
+                      <td className="px-6 py-4">
+                         <span className="flex items-center gap-1.5 text-red-500 font-bold">
+                           <div className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></div>
+                           {new Date(inv.dueDate).toLocaleDateString()}
+                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-bold text-slate-800 dark:text-slate-100">${inv.totalAmount.toLocaleString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-8 text-center text-slate-400">No overdue invoices</td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
           <div className="p-3 bg-slate-50 dark:bg-white/5 text-center">
-             <Button variant="ghost" className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">View All Overdue</Button>
+             <Button 
+              variant="ghost" 
+              onClick={() => navigate("/sales/invoices?status=overdue")}
+              className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-blue-500"
+             >
+               View All Overdue
+             </Button>
           </div>
         </Card>
       </div>
     </div>
   );
 }
+

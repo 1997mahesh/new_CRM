@@ -26,15 +26,17 @@ export class TodoGroupsController extends BaseController {
   });
 
   create = this.handleRequest(async (req: Request) => {
+    const { id, ...data } = req.body;
     return await prisma.todoGroup.create({
-      data: req.body
+      data
     });
   });
 
   update = this.handleRequest(async (req: Request) => {
+    const { id, ...data } = req.body;
     return await prisma.todoGroup.update({
       where: { id: req.params.id },
-      data: req.body
+      data
     });
   });
 
