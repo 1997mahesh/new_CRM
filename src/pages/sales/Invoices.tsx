@@ -67,7 +67,7 @@ export default function InvoicesPage() {
       if (statusFilter !== "all") {
         params.status = statusFilter;
       }
-      const response = await api.get('/sales/invoices', params);
+      const response = await api.get('/invoices', params);
       if (response.success) {
         setInvoices(response.data || []);
       }

@@ -271,6 +271,8 @@ model Lead {
   assignedUser    User?    @relation(fields: [assignedUserId], references: [id])
   priority        String   @default("Medium") // Low, Medium, High
   notes           String?  @db.Text
+  expectedCloseDate DateTime?
+  tags            String[] @default([])
   status          String   @default("Open")
   sortOrder       Int      @default(0)
   createdAt       DateTime @default(now())
@@ -362,6 +364,55 @@ model Invoice {
   updatedAt     DateTime @updatedAt
   
   @@map("invoices")
+}
+
+model Quotation {
+  id            String   @id @default(uuid())
+  number        String   @unique
+  customerId    String
+  customerName  String?
+  title         String?
+  issueDate     DateTime @default(now())
+  validUntil    DateTime
+  subtotal      Float    @default(0)
+  discount      Float    @default(0)
+  discountType  String   @default("Fixed") // Percentage, Fixed
+  discountValue Float    @default(0)
+  taxAmount     Float    @default(0)
+  totalAmount   Float    @default(0)
+  status        String   @default("Draft") // Draft, Sent, Accepted, Rejected, Expired
+  items         Json?    // Array of objects
+  notes         String?  @db.Text
+  terms         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("quotations")
+}
+
+model Order {
+  id            String   @id @default(uuid())
+  number        String   @unique
+  customerId    String
+  customerName  String?
+  title         String?
+  issueDate     DateTime @default(now())
+  deliveryDate  DateTime?
+  subtotal      Float    @default(0)
+  discount      Float    @default(0)
+  discountType  String   @default("Fixed") // Percentage, Fixed
+  discountValue Float    @default(0)
+  taxAmount     Float    @default(0)
+  totalAmount   Float    @default(0)
+  status        String   @default("Draft") // Draft, Confirmed, Shipped, Delivered, Cancelled
+  items         Json?    // Array of objects
+  notes         String?  @db.Text
+  terms         String?  @db.Text
+  quotationId   String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("orders")
 }
 
 model PurchaseOrder {

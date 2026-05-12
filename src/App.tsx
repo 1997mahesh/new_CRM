@@ -10,13 +10,17 @@ import { DashboardPage } from "./pages/Dashboard";
 import { LoginPage } from "./pages/Login";
 import SalesDashboard from "./pages/sales/SalesDashboard";
 import LeadsPage from "./pages/sales/Leads";
+import PipelinePage from "./pages/sales/Pipeline";
 import { LeadCreatePage } from "./pages/sales/LeadCreate";
 import { LeadEditPage } from "./pages/sales/LeadEdit";
 import QuotationsPage from "./pages/sales/Quotations";
+import { QuotationCreatePage } from "./pages/sales/QuotationCreate";
+import { QuotationViewPage } from "./pages/sales/QuotationView";
 import OrdersPage from "./pages/sales/Orders";
 import InvoicesPage from "./pages/sales/Invoices";
 import { InvoiceCreatePage } from "./pages/sales/InvoiceCreate";
 import PaymentsPage from "./pages/sales/Payments";
+import SalesForecastingPage from "./pages/sales/Forecast";
 import PurchaseDashboard from "./pages/purchase/PurchaseDashboard";
 import VendorsPage from "./pages/purchase/Vendors";
 import PurchaseOrdersPage from "./pages/purchase/PurchaseOrders";
@@ -93,9 +97,12 @@ export default function App() {
           <Route path="/sales/leads" element={<LeadsPage />} />
           <Route path="/sales/leads/new" element={<LeadCreatePage />} />
           <Route path="/sales/leads/:id/edit" element={<LeadEditPage />} />
-          <Route path="/sales/pipeline" element={<PlaceholderPage title="Pipeline Management" />} />
-          <Route path="/sales/forecast" element={<PlaceholderPage title="Sales Forecasting" />} />
+          <Route path="/sales/pipeline" element={<PipelinePage />} />
+          <Route path="/sales/forecast" element={<SalesForecastingPage />} />
           <Route path="/sales/quotations" element={<QuotationsPage />} />
+          <Route path="/sales/quotations/new" element={<QuotationCreatePage />} />
+          <Route path="/sales/quotations/:id" element={<QuotationViewPage />} />
+          <Route path="/sales/quotations/:id/edit" element={<QuotationCreatePage />} />
           <Route path="/sales/orders" element={<OrdersPage />} />
           <Route path="/sales/invoices" element={<InvoicesPage />} />
           <Route path="/sales/invoices/new" element={<InvoiceCreatePage />} />

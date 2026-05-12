@@ -31,6 +31,7 @@ router.delete('/email-templates/:id', settingsController.deleteEmailTemplate);
 
 // Number Series
 router.get('/number-series', settingsController.getNumberSeries);
+router.get('/number-series/next/:key', settingsController.getNextNumber);
 router.put('/number-series/:id', settingsController.updateNumberSeries);
 
 // Modules

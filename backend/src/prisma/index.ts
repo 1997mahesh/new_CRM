@@ -1,7 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import { config } from '../config/index.js';
 
-const prisma = new PrismaClient({
+const globalForPrisma = global as unknown as { prisma: PrismaClient };
+
+export const prisma = globalForPrisma.prisma || new PrismaClient({
   datasources: {
     db: {
       url: config.db.url,
@@ -9,5 +11,7 @@ const prisma = new PrismaClient({
   },
   log: ['query', 'info', 'warn', 'error'],
 });
+
+if (config.env !== 'production') globalForPrisma.prisma = prisma;
 
 export default prisma;

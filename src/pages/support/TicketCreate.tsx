@@ -53,7 +53,7 @@ export function TicketCreatePage() {
       try {
         const [userRes, custRes] = await Promise.all([
           api.get('/users'),
-          api.get('/crm/customers')
+          api.get('/customers')
         ]);
         if (userRes.success) setUsers(userRes.data);
         if (custRes.success) setCustomers(custRes.data);

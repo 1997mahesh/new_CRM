@@ -51,7 +51,7 @@ export function InvoiceCreatePage() {
     const fetchRequired = async () => {
       try {
         const [custRes, numRes] = await Promise.all([
-          api.get('/crm/customers'),
+          api.get('/customers'),
           api.get('/system/number-series/next/invoice')
         ]);
         if (custRes.success) setCustomers(custRes.data);

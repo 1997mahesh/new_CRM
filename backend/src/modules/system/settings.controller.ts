@@ -194,3 +194,24 @@ export const updateNumberSeries = async (req: Request, res: Response) => {
     return sendResponse(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message);
   }
 };
+
+export const getNextNumber = async (req: Request, res: Response) => {
+  try {
+    const { key } = req.params;
+    const series = await prisma.numberSeries.findFirst({
+      where: { name: { contains: key, mode: 'insensitive' } }
+    });
+    
+    if (!series) {
+      // Fallback if series doesn't exist
+      const fallback = `${key.toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      return sendResponse(res, HttpStatus.OK, 'Next number fetched (fallback)', fallback);
+    }
+    
+    const nextVal = series.lastNumber + 1;
+    const formatted = `${series.prefix}${String(nextVal).padStart(series.padding, '0')}`;
+    return sendResponse(res, HttpStatus.OK, 'Next number fetched', formatted);
+  } catch (error: any) {
+    return sendResponse(res, HttpStatus.INTERNAL_SERVER_ERROR, error.message);
+  }
+};

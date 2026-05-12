@@ -12,6 +12,7 @@ import morgan from "morgan";
 // Backend imports
 import apiRoutes from "./backend/src/routes/index.js";
 import { errorMiddleware } from "./backend/src/middleware/error.middleware.js";
+import prisma from "./backend/src/prisma/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,6 +20,14 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
+
+  // Verify and log DB connection
+  try {
+    await prisma.$connect();
+    console.log("✅ Database connected successfully");
+  } catch (err) {
+    console.error("❌ Database connection failed:", err);
+  }
 
   // Standard Middlewares
   app.use(helmet({

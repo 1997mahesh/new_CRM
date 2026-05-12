@@ -53,7 +53,8 @@ export class LeadsController extends BaseController {
   create = this.handleRequest(async (req: Request) => {
     const { 
       title, companyName, contactPerson, email, phone, 
-      source, pipelineStage, value, assignedUserId, priority, notes, status 
+      source, pipelineStage, value, assignedUserId, priority, notes, status,
+      expectedCloseDate, tags
     } = req.body;
     
     return await prisma.lead.create({
@@ -69,6 +70,8 @@ export class LeadsController extends BaseController {
         assignedUserId: assignedUserId || null,
         priority: priority || 'Medium',
         notes,
+        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
+        tags: tags || [],
         status: status || 'Open'
       }
     });
@@ -77,7 +80,8 @@ export class LeadsController extends BaseController {
   update = this.handleRequest(async (req: Request) => {
     const { 
       title, companyName, contactPerson, email, phone, 
-      source, pipelineStage, value, assignedUserId, priority, notes, status 
+      source, pipelineStage, value, assignedUserId, priority, notes, status,
+      expectedCloseDate, tags
     } = req.body;
     
     return await prisma.lead.update({
@@ -94,6 +98,8 @@ export class LeadsController extends BaseController {
         assignedUserId: assignedUserId || null,
         priority,
         notes,
+        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : undefined,
+        tags: tags || undefined,
         status
       }
     });
