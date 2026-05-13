@@ -10,5 +10,6 @@ router.post('/', controller.create);
 router.put('/:id', controller.update);
 router.delete('/:id', controller.delete);
 router.post('/:id/duplicate', controller.duplicate);
+router.post('/:id/fulfill', controller.fulfill);
 
 export default router;

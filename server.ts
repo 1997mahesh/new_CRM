@@ -21,12 +21,34 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Verify and log DB connection
-  try {
-    await prisma.$connect();
-    console.log("✅ Database connected successfully");
-  } catch (err) {
-    console.error("❌ Database connection failed:", err);
+  // GLOBAL LOGGER
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Verify and log DB connection with retries
+  const maxRetries = 5;
+  let currentRetry = 0;
+  let connected = false;
+
+  while (currentRetry < maxRetries && !connected) {
+    try {
+      await prisma.$connect();
+      console.log("✅ Database connected successfully");
+      connected = true;
+    } catch (err: any) {
+      currentRetry++;
+      console.error(`❌ Database connection failed (attempt ${currentRetry}/${maxRetries}):`, err.message || err);
+      if (currentRetry < maxRetries) {
+        console.log(`Retrying in ${currentRetry * 2} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, currentRetry * 2000));
+      }
+    }
+  }
+
+  if (!connected) {
+    console.error("⛔ Could not connect to database after multiple attempts. Application may be unstable.");
   }
 
   // Standard Middlewares
@@ -39,10 +61,31 @@ async function startServer() {
   app.use(express.urlencoded({ extended: true }));
 
   // API Routes
-  app.use("/api", apiRoutes);
+  console.log('API Router Status:', typeof apiRoutes === 'function' ? 'Valid' : 'Invalid (' + typeof apiRoutes + ')');
+  
+  app.use("/api", (req, res, next) => {
+    console.log(`[${new Date().toISOString()}] API Request: ${req.method} ${req.url}`);
+    next();
+  }, apiRoutes);
+
+  // Debug route
+  app.get("/api/debug-ping", (req, res) => {
+    res.json({ message: "pong", timestamp: new Date().toISOString() });
+  });
+
+  // Specific 404 for API routes to prevent HTML fallback
+  app.use("/api/*", (req, res) => {
+    console.log(`Unmatched API: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+      success: false,
+      message: `API route not found: ${req.originalUrl}`,
+      error: "NotFound"
+    });
+  });
 
   // Health check (root)
   app.get("/api/health-check", (req, res) => {
+    console.log("Health check hit");
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 

@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { ColumnVisibilityDropdown } from "@/components/shared/ColumnVisibilityDropdown";
 
 // DND Imports
 import {
@@ -90,6 +91,22 @@ export default function LeadsPage() {
   const [activeLead, setActiveLead] = useState<any>(null);
 
   const filterStage = searchParams.get("stage");
+
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    details: true,
+    stage: true,
+    priority: true,
+    potential: true,
+    owner: true,
+  });
+
+  const LEAD_COLUMNS = [
+    { key: "details", label: "Lead Details" },
+    { key: "stage", label: "Stage" },
+    { key: "priority", label: "Priority" },
+    { key: "potential", label: "Potential" },
+    { key: "owner", label: "Owner" },
+  ];
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -337,6 +354,14 @@ export default function LeadsPage() {
             List
           </Button>
         </div>
+        {viewMode === "list" && (
+          <ColumnVisibilityDropdown 
+            columns={LEAD_COLUMNS}
+            visibleColumns={visibleColumns}
+            onChange={setVisibleColumns}
+            persistenceKey="sales_leads_column_visibility"
+          />
+        )}
         <Button variant="outline" className="h-11 border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d] dark:text-slate-300 rounded-xl px-4 gap-2 font-bold w-full md:w-auto">
           <Filter className="h-4 w-4 text-slate-400" />
           Filters
@@ -380,58 +405,68 @@ export default function LeadsPage() {
             <table className="w-full text-left">
               <thead>
                 <tr className="text-[11px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
-                  <th className="px-6 py-4">Lead Details</th>
-                  <th className="px-6 py-4">Stage</th>
-                  <th className="px-6 py-4">Priority</th>
-                  <th className="px-6 py-4">Potential</th>
-                  <th className="px-6 py-4">Owner</th>
+                  {visibleColumns.details && <th className="px-6 py-4">Lead Details</th>}
+                  {visibleColumns.stage && <th className="px-6 py-4">Stage</th>}
+                  {visibleColumns.priority && <th className="px-6 py-4">Priority</th>}
+                  {visibleColumns.potential && <th className="px-6 py-4">Potential</th>}
+                  {visibleColumns.owner && <th className="px-6 py-4">Owner</th>}
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-white/5">
                 {leads.map((lead) => (
                   <tr key={lead.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
-                    <td className="px-6 py-5">
-                      <div className="flex flex-col">
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{lead.title}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                           <Briefcase className="h-3 w-3 text-slate-400" />
-                           <p className="text-[10px] text-slate-400 font-medium">{lead.companyName}</p>
+                    {visibleColumns.details && (
+                      <td className="px-6 py-5">
+                        <div className="flex flex-col">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 transition-colors uppercase tracking-tight">{lead.title}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                             <Briefcase className="h-3 w-3 text-slate-400" />
+                             <p className="text-[10px] text-slate-400 font-medium">{lead.companyName}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5">
-                      <Badge className={cn(
-                        "text-[10px] font-bold uppercase px-2 h-5 tracking-tighter border-none",
-                        lead.pipelineStage === "Won" ? "bg-emerald-50 text-emerald-600" : 
-                        lead.pipelineStage === "Lost" ? "bg-red-50 text-red-600" :
-                        "bg-blue-50 text-blue-600"
-                      )}>
-                        {lead.pipelineStage}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-5">
-                      <Badge variant="outline" className="text-[10px] font-bold uppercase px-2 h-5 border-slate-200 dark:border-white/10 text-slate-500">
-                        {lead.priority}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-5">
-                       <p className="text-[12px] font-bold text-slate-800 dark:text-slate-100 font-mono italic">
-                         ${(lead.value || 0).toLocaleString()}
-                       </p>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-6 w-6">
-                           <AvatarFallback className="text-[8px] bg-slate-100 dark:bg-white/10 text-slate-600">
-                             {lead.assignedUser ? `${lead.assignedUser.firstName?.[0]}${lead.assignedUser.lastName?.[0]}` : "?"}
-                           </AvatarFallback>
-                        </Avatar>
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                          {lead.assignedUser ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}` : "Unassigned"}
-                        </span>
-                      </div>
-                    </td>
+                      </td>
+                    )}
+                    {visibleColumns.stage && (
+                      <td className="px-6 py-5">
+                        <Badge className={cn(
+                          "text-[10px] font-bold uppercase px-2 h-5 tracking-tighter border-none",
+                          lead.pipelineStage === "Won" ? "bg-emerald-50 text-emerald-600" : 
+                          lead.pipelineStage === "Lost" ? "bg-red-50 text-red-600" :
+                          "bg-blue-50 text-blue-600"
+                        )}>
+                          {lead.pipelineStage}
+                        </Badge>
+                      </td>
+                    )}
+                    {visibleColumns.priority && (
+                      <td className="px-6 py-5">
+                        <Badge variant="outline" className="text-[10px] font-bold uppercase px-2 h-5 border-slate-200 dark:border-white/10 text-slate-500">
+                          {lead.priority}
+                        </Badge>
+                      </td>
+                    )}
+                    {visibleColumns.potential && (
+                      <td className="px-6 py-5">
+                         <p className="text-[12px] font-bold text-slate-800 dark:text-slate-100 font-mono italic">
+                           ${(lead.value || 0).toLocaleString()}
+                         </p>
+                      </td>
+                    )}
+                    {visibleColumns.owner && (
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                             <AvatarFallback className="text-[8px] bg-slate-100 dark:bg-white/10 text-slate-600">
+                               {lead.assignedUser ? `${lead.assignedUser.firstName?.[0]}${lead.assignedUser.lastName?.[0]}` : "?"}
+                             </AvatarFallback>
+                          </Avatar>
+                          <span className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                            {lead.assignedUser ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}` : "Unassigned"}
+                          </span>
+                        </div>
+                      </td>
+                    )}
                     <td className="px-6 py-5 text-right">
                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10">

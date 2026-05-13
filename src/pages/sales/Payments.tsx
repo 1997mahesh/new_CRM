@@ -50,6 +50,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { ColumnVisibilityDropdown } from "@/components/shared/ColumnVisibilityDropdown";
 
 const METHOD_ICONS: Record<string, any> = {
   "Bank Transfer": Building2,
@@ -73,6 +74,24 @@ export default function PaymentsPage() {
   const [page, setPage] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const itemsPerPage = 10;
+
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    receipt: true,
+    invoice: true,
+    customer: true,
+    method: true,
+    amount: true,
+    status: true,
+  });
+
+  const PAYMENT_COLUMNS = [
+    { key: "receipt", label: "Receipt Info" },
+    { key: "invoice", label: "Invoice #" },
+    { key: "customer", label: "Customer" },
+    { key: "method", label: "Method / Reference" },
+    { key: "amount", label: "Amount" },
+    { key: "status", label: "Status" },
+  ];
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -253,6 +272,12 @@ export default function PaymentsPage() {
            <Button variant="outline" size="icon" onClick={() => window.print()} className="h-11 w-11 rounded-xl border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d]">
              <Printer className="h-4 w-4 text-slate-400" />
            </Button>
+           <ColumnVisibilityDropdown 
+              columns={PAYMENT_COLUMNS}
+              visibleColumns={visibleColumns}
+              onChange={setVisibleColumns}
+              persistenceKey="sales_payments_column_visibility"
+            />
         </div>
       </div>
 
@@ -274,12 +299,12 @@ export default function PaymentsPage() {
                <table className="w-full text-left min-w-[900px]">
                   <thead>
                      <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-400 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
-                        <th className="px-6 py-4">Receipt Info</th>
-                        <th className="px-6 py-4">Invoice #</th>
-                        <th className="px-6 py-4">Customer</th>
-                        <th className="px-6 py-4">Method / Reference</th>
-                        <th className="px-6 py-4">Amount</th>
-                        <th className="px-6 py-4">Status</th>
+                        {visibleColumns.receipt && <th className="px-6 py-4">Receipt Info</th>}
+                        {visibleColumns.invoice && <th className="px-6 py-4">Invoice #</th>}
+                        {visibleColumns.customer && <th className="px-6 py-4">Customer</th>}
+                        {visibleColumns.method && <th className="px-6 py-4">Method / Reference</th>}
+                        {visibleColumns.amount && <th className="px-6 py-4">Amount</th>}
+                        {visibleColumns.status && <th className="px-6 py-4">Status</th>}
                         <th className="px-6 py-4 text-right">Actions</th>
                      </tr>
                   </thead>
@@ -289,69 +314,81 @@ export default function PaymentsPage() {
                         const pDate = new Date(p.date);
                         return (
                            <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
-                              <td className="px-6 py-5">
-                                 <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 flex flex-col items-center justify-center bg-slate-50 dark:bg-white/5 rounded-xl group-hover:bg-blue-50 dark:group-hover:bg-blue-600/10 group-hover:scale-105 transition-all text-slate-400 group-hover:text-blue-600">
-                                       <span className="text-[8px] font-bold uppercase tracking-widest">{format(pDate, "MMM")}</span>
-                                       <span className="text-sm font-bold -mt-0.5">{format(pDate, "dd")}</span>
-                                    </div>
-                                    <div className="flex flex-col">
-                                       <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">{p.receiptNumber}</span>
-                                       <span className="text-[9px] text-slate-400 font-medium uppercase tracking-tighter italic">{format(pDate, "yyyy")} Fiscal period</span>
-                                    </div>
-                                 </div>
-                              </td>
-                              <td className="px-6 py-5">
-                                 <Badge 
-                                    variant="ghost" 
-                                    onClick={() => navigate(`/sales/invoices/${p.invoiceId}`)}
-                                    className="text-blue-600 font-bold bg-blue-50 dark:bg-blue-600/10 text-xs px-2 h-6 border-none hover:bg-blue-100 italic cursor-pointer uppercase"
-                                 >
-                                    {p.invoice?.number || "N/A"}
-                                 </Badge>
-                              </td>
-                              <td className="px-6 py-5">
-                                 <div className="flex flex-col">
-                                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{p.customerName || p.customer?.name}</span>
-                                    <span className="text-[10px] text-slate-400 font-medium italic opacity-60">Revenue Contributor</span>
-                                 </div>
-                              </td>
-                              <td className="px-6 py-5">
-                                 <div className="flex items-center gap-3">
-                                    <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500">
-                                       <Icon className="h-4 w-4" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{p.method}</span>
-                                       <code className="text-[9px] text-slate-400 opacity-70 italic">{p.reference || "No Ref"}</code>
-                                    </div>
-                                 </div>
-                              </td>
-                              <td className="px-6 py-5">
-                                 <span className="text-[14px] font-bold text-emerald-600 dark:text-emerald-400 font-mono tracking-tighter italic decoration-emerald-500/20 underline underline-offset-4">
-                                    ${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                 </span>
-                              </td>
-                              <td className="px-6 py-5">
-                                 <div className="flex items-center gap-1.5">
-                                    {p.status === 'Success' ? (
-                                       <>
-                                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                                          <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 italic">Success</span>
-                                       </>
-                                    ) : p.status === 'Refunded' ? (
-                                       <>
-                                          <Undo2 className="h-3.5 w-3.5 text-red-500" />
-                                          <span className="text-[10px] font-bold uppercase tracking-widest text-red-600 italic">Refunded</span>
-                                       </>
-                                    ) : (
-                                       <>
-                                          <Clock className="h-3.5 w-3.5 text-amber-500" />
-                                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 italic">{p.status}</span>
-                                       </>
-                                    )}
-                                 </div>
-                              </td>
+                              {visibleColumns.receipt && (
+                                <td className="px-6 py-5">
+                                   <div className="flex items-center gap-3">
+                                      <div className="h-10 w-10 flex flex-col items-center justify-center bg-slate-50 dark:bg-white/5 rounded-xl group-hover:bg-blue-50 dark:group-hover:bg-blue-600/10 group-hover:scale-105 transition-all text-slate-400 group-hover:text-blue-600">
+                                         <span className="text-[8px] font-bold uppercase tracking-widest">{format(pDate, "MMM")}</span>
+                                         <span className="text-sm font-bold -mt-0.5">{format(pDate, "dd")}</span>
+                                      </div>
+                                      <div className="flex flex-col">
+                                         <span className="text-sm font-bold text-slate-800 dark:text-slate-100 italic">{p.receiptNumber}</span>
+                                         <span className="text-[9px] text-slate-400 font-medium uppercase tracking-tighter italic">{format(pDate, "yyyy")} Fiscal period</span>
+                                      </div>
+                                   </div>
+                                </td>
+                              )}
+                              {visibleColumns.invoice && (
+                                <td className="px-6 py-5">
+                                   <Badge 
+                                      variant="ghost" 
+                                      onClick={() => navigate(`/sales/invoices/${p.invoiceId}`)}
+                                      className="text-blue-600 font-bold bg-blue-50 dark:bg-blue-600/10 text-xs px-2 h-6 border-none hover:bg-blue-100 italic cursor-pointer uppercase"
+                                   >
+                                      {p.invoice?.number || "N/A"}
+                                   </Badge>
+                                </td>
+                              )}
+                              {visibleColumns.customer && (
+                                <td className="px-6 py-5">
+                                   <div className="flex flex-col">
+                                      <span className="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{p.customerName || p.customer?.name}</span>
+                                      <span className="text-[10px] text-slate-400 font-medium italic opacity-60">Revenue Contributor</span>
+                                   </div>
+                                </td>
+                              )}
+                              {visibleColumns.method && (
+                                <td className="px-6 py-5">
+                                   <div className="flex items-center gap-3">
+                                      <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-slate-100 dark:bg-white/5 text-slate-500">
+                                         <Icon className="h-4 w-4" />
+                                      </div>
+                                      <div className="flex flex-col">
+                                         <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{p.method}</span>
+                                         <code className="text-[9px] text-slate-400 opacity-70 italic">{p.reference || "No Ref"}</code>
+                                      </div>
+                                   </div>
+                                </td>
+                              )}
+                              {visibleColumns.amount && (
+                                <td className="px-6 py-5">
+                                   <span className="text-[14px] font-bold text-emerald-600 dark:text-emerald-400 font-mono tracking-tighter italic decoration-emerald-500/20 underline underline-offset-4">
+                                      ${p.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                   </span>
+                                </td>
+                              )}
+                              {visibleColumns.status && (
+                                <td className="px-6 py-5">
+                                   <div className="flex items-center gap-1.5">
+                                      {p.status === 'Success' ? (
+                                         <>
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 italic">Success</span>
+                                         </>
+                                      ) : p.status === 'Refunded' ? (
+                                         <>
+                                            <Undo2 className="h-3.5 w-3.5 text-red-500" />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-red-600 italic">Refunded</span>
+                                         </>
+                                      ) : (
+                                         <>
+                                            <Clock className="h-3.5 w-3.5 text-amber-500" />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600 italic">{p.status}</span>
+                                         </>
+                                      )}
+                                   </div>
+                                </td>
+                              )}
                               <td className="px-6 py-5 text-right">
                                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                     <Button 

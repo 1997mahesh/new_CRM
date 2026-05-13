@@ -1,4 +1,11 @@
-const BASE_URL = '/api';
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api`;
+  }
+  return '/api';
+};
+
+const BASE_URL = getBaseUrl();
 
 export const api = {
   get: async (path: string, params?: Record<string, any>) => {

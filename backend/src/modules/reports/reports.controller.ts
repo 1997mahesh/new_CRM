@@ -17,8 +17,8 @@ export const getSalesReport = async (req: Request, res: Response) => {
     const invoices = await prisma.invoice.findMany({ where });
     
     // Revenue stats
-    const totalRevenue = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-    const paidRevenue = invoices.filter(inv => inv.status === 'Paid').reduce((sum, inv) => sum + inv.amount, 0);
+    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const paidRevenue = invoices.filter(inv => inv.status === 'Paid' || inv.status === 'paid').reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
     
     // Invoice Aging
     const now = new Date();
@@ -30,22 +30,24 @@ export const getSalesReport = async (req: Request, res: Response) => {
     };
 
     invoices.forEach(inv => {
-      if (inv.status !== 'Paid') {
-        const diffDays = Math.floor((now.getTime() - new Date(inv.dueDate).getTime()) / (1000 * 3600 * 24));
-        if (diffDays <= 0) aging.current += inv.amount;
-        else if (diffDays <= 30) aging['30_days'] += inv.amount;
-        else if (diffDays <= 90) aging['60_days'] += inv.amount;
-        else aging['90_plus'] += inv.amount;
+      if (inv.status !== 'Paid' && inv.status !== 'paid') {
+        const dueDate = new Date(inv.dueDate);
+        const diffDays = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 3600 * 24));
+        if (diffDays <= 0) aging.current += (inv.totalAmount || 0);
+        else if (diffDays <= 30) aging['30_days'] += (inv.totalAmount || 0);
+        else if (diffDays <= 90) aging['60_days'] += (inv.totalAmount || 0);
+        else aging['90_plus'] += (inv.totalAmount || 0);
       }
     });
 
     // Top Customers (Summary by customerId)
     const customerStats = invoices.reduce((acc: any, inv) => {
-      acc[inv.customerId] = (acc[inv.customerId] || 0) + inv.amount;
+      const name = inv.customerName || inv.customerId;
+      acc[name] = (acc[name] || 0) + (inv.totalAmount || 0);
       return acc;
     }, {});
 
-    const topCustomers = Object.entries(customerStats).map(([id, amount]) => ({ id, amount })).sort((a: any, b: any) => b.amount - a.amount);
+    const topCustomers = Object.entries(customerStats).map(([name, amount]) => ({ name, amount })).sort((a: any, b: any) => b.amount - a.amount);
 
     return sendResponse(res, HttpStatus.OK, 'Sales report fetched', {
       stats: {
@@ -78,12 +80,12 @@ export const getPurchaseReport = async (req: Request, res: Response) => {
       include: { vendor: true }
     });
 
-    const totalSpend = pos.reduce((sum, po) => sum + po.amount, 0);
+    const totalSpend = pos.reduce((sum, po) => sum + (po.totalAmount || 0), 0);
     
     // Vendor reports
     const vendorStats = pos.reduce((acc: any, po) => {
-      const name = po.vendor.name;
-      acc[name] = (acc[name] || 0) + po.amount;
+      const name = po.vendor?.name || po.vendorName || 'Unknown Vendor';
+      acc[name] = (acc[name] || 0) + (po.totalAmount || 0);
       return acc;
     }, {});
 
@@ -110,12 +112,12 @@ export const getStockReport = async (req: Request, res: Response) => {
       include: { warehouse: true }
     });
 
-    const totalValuation = inventory.reduce((sum, item) => sum + item.valuation, 0);
-    const lowStockItems = inventory.filter(item => item.quantity < 10);
+    const totalValuation = inventory.reduce((sum, item) => sum + (item.currentStock * item.costPrice), 0);
+    const lowStockItems = inventory.filter(item => item.currentStock < 10);
 
     const warehouseDistribution = inventory.reduce((acc: any, item) => {
       const name = item.warehouse.name;
-      acc[name] = (acc[name] || 0) + item.valuation;
+      acc[name] = (acc[name] || 0) + (item.currentStock * item.costPrice);
       return acc;
     }, {});
 
@@ -149,18 +151,18 @@ export const getFinanceReport = async (req: Request, res: Response) => {
       } : {}
     });
 
-    const totalIncome = invoices.reduce((sum, inv) => sum + inv.amount, 0);
-    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalIncome = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const totalExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
     const profit = totalIncome - totalExpenses;
 
     // Outstanding AR/AP
-    const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid').reduce((sum, inv) => sum + inv.amount, 0);
+    const unpaidInvoices = invoices.filter(inv => inv.status !== 'Paid' && inv.status !== 'paid').reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
     
     // For AP we could use Purchase Orders status
     const pos = await prisma.purchaseOrder.findMany({
-       where: { status: { not: 'Received' } }
+       where: { status: { notIn: ['Received', 'received'] } }
     });
-    const outstandingAP = pos.reduce((sum, po) => sum + po.amount, 0);
+    const outstandingAP = pos.reduce((sum, po) => sum + (po.totalAmount || 0), 0);
 
     return sendResponse(res, HttpStatus.OK, 'Finance report fetched', {
       summary: {

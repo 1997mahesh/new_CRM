@@ -59,6 +59,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { ColumnVisibilityDropdown } from "@/components/shared/ColumnVisibilityDropdown";
 
 type User = {
   id: string;
@@ -92,14 +93,27 @@ export default function UsersPage() {
   const [locFilter, setLocFilter] = useState("");
   
   // Column visibility
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
-    const saved = localStorage.getItem("user_table_columns");
-    return saved ? JSON.parse(saved) : ["name", "code", "email", "mobile", "designation", "status", "created"];
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    name: true,
+    code: true,
+    email: true,
+    mobile: true,
+    designation: true,
+    location: true,
+    status: true,
+    created: true,
   });
 
-  useEffect(() => {
-    localStorage.setItem("user_table_columns", JSON.stringify(visibleColumns));
-  }, [visibleColumns]);
+  const USER_COLUMNS = [
+    { key: "name", label: "Name" },
+    { key: "code", label: "Emp. Code" },
+    { key: "email", label: "Email" },
+    { key: "mobile", label: "Mobile" },
+    { key: "designation", label: "Designation" },
+    { key: "location", label: "Location" },
+    { key: "status", label: "Status" },
+    { key: "created", label: "Created" },
+  ];
 
   // Modals
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -342,23 +356,6 @@ export default function UsersPage() {
     }, 300);
   };
 
-  const columns = [
-    { id: "name", label: "Name" },
-    { id: "code", label: "Emp. Code" },
-    { id: "email", label: "Email" },
-    { id: "mobile", label: "Mobile" },
-    { id: "designation", label: "Designation" },
-    { id: "location", label: "Location" },
-    { id: "status", label: "Status" },
-    { id: "created", label: "Created" },
-  ];
-
-  const toggleColumn = (colId: string) => {
-    setVisibleColumns(prev => 
-      prev.includes(colId) ? prev.filter(c => c !== colId) : [...prev, colId]
-    );
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-12">
       {/* Header */}
@@ -546,30 +543,12 @@ export default function UsersPage() {
               </SelectContent>
             </Select>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="h-11 px-4 border-slate-100 dark:border-white/5 bg-slate-50/50 dark:bg-white/5 font-medium text-slate-600 dark:text-slate-400 rounded-xl gap-2">
-                  <Columns className="h-4 w-4 opacity-50" />
-                  <span>Columns</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl dark:bg-[#1a1619] dark:border-white/5 shadow-2xl">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400 px-3 py-2">Table Columns</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="opacity-50" />
-                  {columns.map(col => (
-                    <DropdownMenuCheckboxItem
-                      key={col.id}
-                      checked={visibleColumns.includes(col.id)}
-                      onCheckedChange={() => toggleColumn(col.id)}
-                      className="rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                    >
-                      {col.label}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <ColumnVisibilityDropdown 
+              columns={USER_COLUMNS}
+              visibleColumns={visibleColumns}
+              onChange={setVisibleColumns}
+              persistenceKey="crm_users_column_visibility"
+            />
           </div>
 
           {/* Export - Right Side */}
@@ -587,14 +566,14 @@ export default function UsersPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="text-[11px] font-bold uppercase tracking-widest text-slate-400 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5">
-                {visibleColumns.includes("name") && <th className="px-6 py-4 whitespace-nowrap">Name</th>}
-                {visibleColumns.includes("code") && <th className="px-6 py-4 whitespace-nowrap">Emp. Code</th>}
-                {visibleColumns.includes("email") && <th className="px-6 py-4 whitespace-nowrap">Email</th>}
-                {visibleColumns.includes("mobile") && <th className="px-6 py-4 whitespace-nowrap">Mobile</th>}
-                {visibleColumns.includes("designation") && <th className="px-6 py-4 whitespace-nowrap">Designation</th>}
-                {visibleColumns.includes("location") && <th className="px-6 py-4 whitespace-nowrap">Location</th>}
-                {visibleColumns.includes("status") && <th className="px-6 py-4 whitespace-nowrap">Status</th>}
-                {visibleColumns.includes("created") && <th className="px-6 py-4 whitespace-nowrap">Created</th>}
+                {visibleColumns.name && <th className="px-6 py-4 whitespace-nowrap">Name</th>}
+                {visibleColumns.code && <th className="px-6 py-4 whitespace-nowrap">Emp. Code</th>}
+                {visibleColumns.email && <th className="px-6 py-4 whitespace-nowrap">Email</th>}
+                {visibleColumns.mobile && <th className="px-6 py-4 whitespace-nowrap">Mobile</th>}
+                {visibleColumns.designation && <th className="px-6 py-4 whitespace-nowrap">Designation</th>}
+                {visibleColumns.location && <th className="px-6 py-4 whitespace-nowrap">Location</th>}
+                {visibleColumns.status && <th className="px-6 py-4 whitespace-nowrap">Status</th>}
+                {visibleColumns.created && <th className="px-6 py-4 whitespace-nowrap">Created</th>}
                 <th className="px-6 py-4 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
@@ -630,7 +609,7 @@ export default function UsersPage() {
               ) : (
                 users.map((user) => (
                 <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
-                  {visibleColumns.includes("name") && (
+                  {visibleColumns.name && (
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
                         <Avatar className="h-11 w-11 border-2 border-white dark:border-white/10 shadow-sm rounded-xl">
@@ -656,29 +635,29 @@ export default function UsersPage() {
                       </div>
                     </td>
                   )}
-                  {visibleColumns.includes("code") && (
+                  {visibleColumns.code && (
                     <td className="px-6 py-4">
                       <Badge variant="outline" className="text-[11px] font-mono border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-slate-600 dark:text-slate-400">
                          {user.employeeCode || "N/A"}
                       </Badge>
                     </td>
                   )}
-                  {visibleColumns.includes("email") && (
+                  {visibleColumns.email && (
                     <td className="px-6 py-4">
                       <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{user.email}</p>
                       <p className="text-[10px] text-slate-400">{user.department?.name || "No Dept."}</p>
                     </td>
                   )}
-                  {visibleColumns.includes("mobile") && (
+                  {visibleColumns.mobile && (
                     <td className="px-6 py-4 text-[11px] font-medium text-slate-500">{user.mobile || "—"}</td>
                   )}
-                  {visibleColumns.includes("designation") && (
+                  {visibleColumns.designation && (
                     <td className="px-6 py-4 text-[11px] font-medium text-slate-500 whitespace-nowrap">{user.designation || "—"}</td>
                   )}
-                  {visibleColumns.includes("location") && (
+                  {visibleColumns.location && (
                     <td className="px-6 py-4 text-[11px] font-medium text-slate-500 whitespace-nowrap">{user.location?.name || "—"}</td>
                   )}
-                  {visibleColumns.includes("status") && (
+                  {visibleColumns.status && (
                     <td className="px-6 py-4">
                       <Badge variant="outline" className={cn(
                         "text-[10px] font-bold uppercase px-2 h-5 tracking-tighter border-none",
@@ -688,7 +667,7 @@ export default function UsersPage() {
                       </Badge>
                     </td>
                   )}
-                  {visibleColumns.includes("created") && (
+                  {visibleColumns.created && (
                     <td className="px-6 py-4 text-[10px] text-slate-400">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </td>

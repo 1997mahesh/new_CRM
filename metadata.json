@@ -1,6 +1,6 @@
 {
   "name": "tpdCRM",
-  "description": "A professional, full-featured SaaS CRM & ERP hybrid system for managing sales, customers, inventory, finance, and support.",
+  "description": "A professional, full-featured SaaS CRM & ERP hybrid system for managing sales, customers, full-stock inventory management, finance, and support.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

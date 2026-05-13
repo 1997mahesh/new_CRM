@@ -106,6 +106,20 @@ export default function OrderViewPage() {
     }
   };
 
+  const fulfillOrder = async () => {
+    if (!window.confirm("Fulfill this order? This will deduct stock from inventory and mark it as Shipped.")) return;
+    try {
+      setLoading(true);
+      const res = await api.post(`/orders/${id}/fulfill`, {});
+      toast.success("Order fulfilled and stock updated successfully.");
+      fetchOrder();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to fulfill order.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) return <div className="flex h-64 items-center justify-center font-bold uppercase tracking-widest text-slate-400 italic">Refining Order Data...</div>;
   if (!order) return <div className="p-12 text-center font-bold text-red-500 italic">Order not found.</div>;
 
@@ -284,6 +298,14 @@ export default function OrderViewPage() {
           <Card className="p-6 border-slate-200 dark:border-white/5 dark:bg-[#1C1F26] rounded-2xl shadow-soft">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-4 italic">Next Actions</h3>
             <div className="space-y-2">
+              {order.status !== 'Shipped' && order.status !== 'Delivered' && order.status !== 'Cancelled' && (
+                <Button 
+                    onClick={fulfillOrder}
+                    className="w-full justify-start rounded-xl h-11 font-bold italic tracking-tight gap-3 bg-blue-600 hover:bg-blue-700 shadow-premium"
+                >
+                    <Package className="h-4 w-4" /> <span>Fulfill & Ship</span>
+                </Button>
+              )}
               <Button 
                 onClick={createInvoice}
                 className="w-full justify-start rounded-xl h-11 font-bold italic tracking-tight gap-3 bg-emerald-600 hover:bg-emerald-700 shadow-premium"

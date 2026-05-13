@@ -45,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { ColumnVisibilityDropdown } from "@/components/shared/ColumnVisibilityDropdown";
 
 const STATUS_CONFIG: Record<string, { label: string, color: string }> = {
   "draft": { label: "Draft", color: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-400" },
@@ -66,24 +67,25 @@ export default function InvoicesPage() {
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 1 });
   
   // Column Preferences
-  const [visibleColumns, setVisibleColumns] = useState(() => {
-    const saved = localStorage.getItem('invoice_columns');
-    return saved ? JSON.parse(saved) : {
-      number: true,
-      customer: true,
-      status: true,
-      dates: true,
-      total: true,
-      due: true,
-      actions: true
-    };
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    number: true,
+    customer: true,
+    status: true,
+    dates: true,
+    total: true,
+    due: true,
   });
 
-  const statusFilter = searchParams.get("status") || "all";
+  const INVOICE_COLUMNS = [
+    { key: "number", label: "Invoice #" },
+    { key: "customer", label: "Customer" },
+    { key: "status", label: "Status" },
+    { key: "dates", label: "Issue / Due" },
+    { key: "total", label: "Total Amount" },
+    { key: "due", label: "Amount Due" },
+  ];
 
-  useEffect(() => {
-    localStorage.setItem('invoice_columns', JSON.stringify(visibleColumns));
-  }, [visibleColumns]);
+  const statusFilter = searchParams.get("status") || "all";
 
   useEffect(() => {
     fetchInvoices();
@@ -235,36 +237,22 @@ export default function InvoicesPage() {
              <div className="relative flex-1 lg:w-64 group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                 <Input 
-                  placeholder="Search invoice..." 
-                  className="pl-10 h-11 border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d] rounded-xl shadow-soft" 
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                   placeholder="Search invoice..." 
+                   className="pl-10 h-11 border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d] rounded-xl shadow-soft" 
+                   value={search}
+                   onChange={(e) => setSearch(e.target.value)}
                 />
              </div>
              
-             <DropdownMenu>
-               <DropdownMenuTrigger asChild>
-                 <Button variant="outline" className="h-11 rounded-xl border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d] gap-2 px-3">
-                   <ColumnsIcon className="h-4 w-4 text-slate-400" />
-                   <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Columns</span>
-                 </Button>
-               </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel className="text-[10px] font-black uppercase text-slate-400 tracking-widest px-2 py-1.5">Toggle Columns</DropdownMenuLabel>
-                    <DropdownMenuSeparator className="opacity-50" />
-                    <DropdownMenuCheckboxItem checked={visibleColumns.number} onCheckedChange={() => toggleColumn('number')} className="rounded-lg text-xs font-bold">Invoice Number</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleColumns.customer} onCheckedChange={() => toggleColumn('customer')} className="rounded-lg text-xs font-bold">Customer</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleColumns.status} onCheckedChange={() => toggleColumn('status')} className="rounded-lg text-xs font-bold">Status</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleColumns.dates} onCheckedChange={() => toggleColumn('dates')} className="rounded-lg text-xs font-bold">Dates</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleColumns.total} onCheckedChange={() => toggleColumn('total')} className="rounded-lg text-xs font-bold">Total</DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem checked={visibleColumns.due} onCheckedChange={() => toggleColumn('due')} className="rounded-lg text-xs font-bold">Amount Due</DropdownMenuCheckboxItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-             </DropdownMenu>
+             <ColumnVisibilityDropdown 
+                columns={INVOICE_COLUMNS}
+                visibleColumns={visibleColumns}
+                onChange={setVisibleColumns}
+                persistenceKey="invoice_columns"
+             />
 
              <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl border-slate-200 dark:border-white/5 bg-white dark:bg-[#1f1a1d]">
-               <Filter className="h-4 w-4 text-slate-400" />
+                <Filter className="h-4 w-4 text-slate-400" />
              </Button>
           </div>
         </div>
@@ -282,7 +270,7 @@ export default function InvoicesPage() {
                   {visibleColumns.dates && <th className="px-6 py-4">Issue / Due</th>}
                   {visibleColumns.total && <th className="px-6 py-4">Total Amount</th>}
                   {visibleColumns.due && <th className="px-6 py-4">Amount Due</th>}
-                  {visibleColumns.actions && <th className="px-6 py-4 text-right">Actions</th>}
+                  <th className="px-6 py-4 text-right">Actions</th>
                </tr>
              </thead>
              <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs">
@@ -376,54 +364,52 @@ export default function InvoicesPage() {
                        )}>${inv.balance?.toLocaleString() || "0"}</span>
                     </td>
                    )}
-                   {visibleColumns.actions && (
-                    <td className="px-6 py-5 text-right">
-                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10"
-                            onClick={() => navigate(`/sales/invoices/${inv.id}`)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:bg-white/10">
-                            <Printer className="h-3.5 w-3.5" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                               <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                                 <MoreHorizontal className="h-4 w-4" />
-                               </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 rounded-xl dark:bg-[#1f1a1d] dark:border-white/10 p-2">
-                               <DropdownMenuGroup>
-                                 <DropdownMenuLabel className="text-[10px] uppercase font-black text-slate-400 tracking-widest px-2 py-1.5">Invoice Control</DropdownMenuLabel>
-                                 <DropdownMenuSeparator className="opacity-10" />
-                                 <DropdownMenuItem onClick={() => navigate(`/sales/invoices/${inv.id}`)} className="text-xs font-bold gap-2 focus:bg-blue-50 dark:focus:bg-blue-600/10 rounded-lg">
-                                    <Receipt className="h-3.5 w-3.5 text-emerald-500" /> Record Payment
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem className="text-xs font-bold gap-2 rounded-lg">
-                                    <Mail className="h-3.5 w-3.5 text-slate-400" /> Send Reminder
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => duplicateInvoice(inv.id)} className="text-xs font-bold gap-2 rounded-lg">
-                                    <Copy className="h-3.5 w-3.5 text-slate-400" /> Duplicate
-                                 </DropdownMenuItem>
-                               </DropdownMenuGroup>
-                               <DropdownMenuSeparator className="opacity-10" />
-                               <DropdownMenuGroup>
-                                 <DropdownMenuItem onClick={() => voidInvoice(inv.id)} className="text-xs font-bold gap-2 text-amber-600 rounded-lg">
-                                    <Ban className="h-3.5 w-3.5" /> Void
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem onClick={() => deleteInvoice(inv.id)} className="text-xs font-bold gap-2 text-red-500 rounded-lg">
-                                    <Trash2 className="h-3.5 w-3.5" /> Delete
-                                 </DropdownMenuItem>
-                               </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                       </div>
-                    </td>
-                   )}
+                   <td className="px-6 py-5 text-right">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                         <Button 
+                           variant="ghost" 
+                           size="icon" 
+                           className="h-8 w-8 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10"
+                           onClick={() => navigate(`/sales/invoices/${inv.id}`)}
+                         >
+                           <Eye className="h-4 w-4" />
+                         </Button>
+                         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:bg-white/10">
+                           <Printer className="h-3.5 w-3.5" />
+                         </Button>
+                         <DropdownMenu>
+                           <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="end" className="w-48 rounded-xl dark:bg-[#1f1a1d] dark:border-white/10 p-2">
+                              <DropdownMenuGroup>
+                                <DropdownMenuLabel className="text-[10px] uppercase font-black text-slate-400 tracking-widest px-2 py-1.5">Invoice Control</DropdownMenuLabel>
+                                <DropdownMenuSeparator className="opacity-10" />
+                                <DropdownMenuItem onClick={() => navigate(`/sales/invoices/${inv.id}`)} className="text-xs font-bold gap-2 focus:bg-blue-50 dark:focus:bg-blue-600/10 rounded-lg">
+                                   <Receipt className="h-3.5 w-3.5 text-emerald-500" /> Record Payment
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-xs font-bold gap-2 rounded-lg">
+                                   <Mail className="h-3.5 w-3.5 text-slate-400" /> Send Reminder
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => duplicateInvoice(inv.id)} className="text-xs font-bold gap-2 rounded-lg">
+                                   <Copy className="h-3.5 w-3.5 text-slate-400" /> Duplicate
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                              <DropdownMenuSeparator className="opacity-10" />
+                              <DropdownMenuGroup>
+                                <DropdownMenuItem onClick={() => voidInvoice(inv.id)} className="text-xs font-bold gap-2 text-amber-600 rounded-lg">
+                                   <Ban className="h-3.5 w-3.5" /> Void
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => deleteInvoice(inv.id)} className="text-xs font-bold gap-2 text-red-500 rounded-lg">
+                                   <Trash2 className="h-3.5 w-3.5" /> Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuGroup>
+                           </DropdownMenuContent>
+                         </DropdownMenu>
+                      </div>
+                   </td>
                  </tr>
                ))}
              </tbody>

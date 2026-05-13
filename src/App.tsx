@@ -29,8 +29,14 @@ import PaymentViewPage from "./pages/sales/PaymentView";
 import SalesForecastingPage from "./pages/sales/Forecast";
 import PurchaseDashboard from "./pages/purchase/PurchaseDashboard";
 import VendorsPage from "./pages/purchase/Vendors";
+import VendorDetailPage from "./pages/purchase/VendorDetail";
 import PurchaseOrdersPage from "./pages/purchase/PurchaseOrders";
+import PurchaseOrderCreatePage from "./pages/purchase/PurchaseOrderCreate";
+import PurchaseOrderViewPage from "./pages/purchase/PurchaseOrderView";
+import GoodsReceiptPage from "./pages/purchase/GoodsReceipt";
 import BillsPage from "./pages/purchase/Bills";
+import BillCreatePage from "./pages/purchase/BillCreate";
+import BillViewPage from "./pages/purchase/BillView";
 import InventoryDashboard from "./pages/inventory/InventoryDashboard";
 import InvProductsPage from "./pages/inventory/Products";
 import InvCategoriesPage from "./pages/inventory/Categories";
@@ -125,8 +131,16 @@ export default function App() {
           {/* Purchase Module */}
           <Route path="/purchase/dashboard" element={<PurchaseDashboard />} />
           <Route path="/purchase/vendors" element={<VendorsPage />} />
+          <Route path="/purchase/vendors/:id" element={<VendorDetailPage />} />
           <Route path="/purchase/orders" element={<PurchaseOrdersPage />} />
+          <Route path="/purchase/orders/new" element={<PurchaseOrderCreatePage />} />
+          <Route path="/purchase/orders/:id" element={<PurchaseOrderViewPage />} />
+          <Route path="/purchase/orders/:id/edit" element={<PurchaseOrderCreatePage />} />
+          <Route path="/purchase/orders/:id/receive" element={<GoodsReceiptPage />} />
           <Route path="/purchase/bills" element={<BillsPage />} />
+          <Route path="/purchase/bills/new" element={<BillCreatePage />} />
+          <Route path="/purchase/bills/:id" element={<BillViewPage />} />
+          <Route path="/purchase/bills/:id/edit" element={<BillCreatePage />} />
 
           {/* Inventory Module */}
           <Route path="/inventory/dashboard" element={<InventoryDashboard />} />

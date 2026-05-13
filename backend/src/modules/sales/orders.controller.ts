@@ -136,4 +136,64 @@ export class OrdersController extends BaseController {
       });
     });
   });
+
+  fulfill = this.handleRequest(async (req: Request) => {
+    const { id } = req.params;
+    const userId = (req as any).user?.id || null;
+
+    const order = await prisma.order.findUnique({
+      where: { id }
+    });
+
+    if (!order) throw new Error('Order not found');
+    if (order.status === 'Shipped' || order.status === 'Delivered') {
+        throw new Error('Order already fulfilled');
+    }
+
+    const items = order.items as any[] || [];
+
+    await (prisma as any).$transaction(async (tx: any) => {
+      for (const item of items) {
+        if (item.productId) {
+          const product = await tx.inventory.findUnique({
+            where: { id: item.productId }
+          });
+
+          if (product) {
+            const warehouseId = product.warehouseId || (await tx.warehouse.findFirst())?.id;
+            
+            await tx.inventory.update({
+              where: { id: item.productId },
+              data: {
+                currentStock: { decrement: Math.floor(item.quantity) },
+                status: ((product.currentStock - Math.floor(item.quantity)) <= 0) ? 'Out of Stock' : 
+                        ((product.currentStock - Math.floor(item.quantity)) <= product.minimumStock) ? 'Low Stock' : 'In Stock'
+              }
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                productId: item.productId,
+                type: 'OUT',
+                quantity: Math.floor(item.quantity),
+                warehouseId: warehouseId!,
+                referenceType: 'SALES_ORDER',
+                referenceId: order.number,
+                cost: product.costPrice,
+                createdBy: userId,
+                date: new Date()
+              }
+            });
+          }
+        }
+      }
+
+      await tx.order.update({
+        where: { id },
+        data: { status: 'Shipped' }
+      });
+    });
+
+    return { message: 'Order fulfilled and stock updated' };
+  });
 }

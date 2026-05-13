@@ -59,7 +59,7 @@ export class DashboardController extends BaseController {
       }),
       prisma.inventory.count({
         where: {
-          quantity: { lt: 10 } // Simplified low stock
+          currentStock: { lt: 10 } // Simplified low stock
         }
       }),
       prisma.expense.aggregate({
@@ -68,9 +68,11 @@ export class DashboardController extends BaseController {
           date: { gte: firstDayMonth }
         }
       }),
-      prisma.purchaseOrder.aggregate({
-        _sum: { amount: true },
-        where: { status: 'Pending' }
+      prisma.vendorBill.aggregate({
+        _sum: { balance: true },
+        where: {
+          status: { in: ['unpaid', 'partially paid', 'partial'] }
+        }
       }),
       prisma.todo.count({ where: { status: { in: ['Pending', 'In Progress'] } } }),
       prisma.todo.count({ where: { status: 'Completed' } }),
@@ -146,8 +148,8 @@ export class DashboardController extends BaseController {
         lowStockCount,
         pendingRevenue: totalRevenuePending._sum.totalAmount || 0,
         expensesMTD: totalExpenses._sum.amount || 0,
-        apOutstanding: totalAPOutstanding._sum.amount || 0,
-        spendMTD: (totalExpenses._sum.amount || 0) + (totalAPOutstanding._sum.amount || 0),
+        apOutstanding: totalAPOutstanding._sum.balance || 0,
+        spendMTD: (totalExpenses._sum.amount || 0) + (totalAPOutstanding._sum.balance || 0),
         pendingTasks,
         completedTasks,
         forecast: (pipelineValue._sum.value || 0) * 0.2 // Simplified forecast

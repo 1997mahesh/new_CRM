@@ -43,18 +43,18 @@ async function main() {
 
   // 3. Inventory
   const inventoryItems = [
-    { id: 'inv-001', sku: 'LAP-MAC-14', name: 'MacBook Pro 14"', quantity: 50, unitPrice: 1999, valuation: 99950, warehouseId: warehouseA.id },
-    { id: 'inv-002', sku: 'LAP-DEL-XPS', name: 'Dell XPS 15', quantity: 35, unitPrice: 1500, valuation: 52500, warehouseId: warehouseA.id },
-    { id: 'inv-003', sku: 'MON-DELL-27', name: 'Dell 27" UltraSharp', quantity: 12, unitPrice: 450, valuation: 5400, warehouseId: warehouseB.id },
-    { id: 'inv-004', sku: 'CHR-ERG-01', name: 'Ergonomic Task Chair', quantity: 5, unitPrice: 200, valuation: 1000, warehouseId: warehouseB.id },
+    { id: 'inv-001', sku: 'LAP-MAC-14', name: 'MacBook Pro 14"', currentStock: 50, costPrice: 1999, warehouseId: warehouseA.id },
+    { id: 'inv-002', sku: 'LAP-DEL-XPS', name: 'Dell XPS 15', currentStock: 35, costPrice: 1500, warehouseId: warehouseA.id },
+    { id: 'inv-003', sku: 'MON-DELL-27', name: 'Dell 27" UltraSharp', currentStock: 12, costPrice: 450, warehouseId: warehouseB.id },
+    { id: 'inv-004', sku: 'CHR-ERG-01', name: 'Ergonomic Task Chair', currentStock: 5, costPrice: 200, warehouseId: warehouseB.id },
   ];
 
   for (const item of inventoryItems) {
     await prisma.inventory.upsert({
       where: { sku: item.sku },
       update: {
-          quantity: item.quantity,
-          valuation: item.valuation
+          currentStock: item.currentStock,
+          costPrice: item.costPrice
       },
       create: item,
     });

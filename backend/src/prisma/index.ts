@@ -28,9 +28,22 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
             error.code === 'P2024' || // Connection timeout
             error.code === 'P1017'    // Server has closed the connection
           )) {
-            console.log(`Retrying ${operation} on ${model} (attempt ${attempt + 1})...`);
+            console.log(`Retrying ${operation} on ${model} after connection error (attempt ${attempt + 1})...`);
+            
+            // If it's a fatal connection error, force a disconnect to refresh the pool
+            if (error.message?.includes('E57P01') || error.message?.includes('terminating connection')) {
+              try {
+                // We use the global reference or just try to disconnect if available
+                if (globalForPrisma.prisma) {
+                  await globalForPrisma.prisma.$disconnect();
+                }
+              } catch (e) {
+                // Ignore disconnect errors
+              }
+            }
+
             // Wait a bit before retrying
-            await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
             return execute(attempt + 1);
           }
           throw error;

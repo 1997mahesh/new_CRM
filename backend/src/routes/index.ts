@@ -3,6 +3,8 @@ import { sendResponse, HttpStatus } from '../utils/response.js';
 
 const router = Router();
 
+console.log('Initializing API Routes...');
+
 // Health check
 router.get('/health', (req, res) => {
   return sendResponse(res, HttpStatus.OK, 'System is healthy');
@@ -23,6 +25,8 @@ import quotationRoutes from '../modules/sales/quotations.routes.js';
 import invoiceRoutes from '../modules/sales/invoices.routes.js';
 import ordersRoutes from '../modules/sales/orders.routes.js';
 import paymentsRoutes from '../modules/sales/payments.routes.js';
+import purchaseRoutes from '../modules/purchase/purchase.routes.js';
+import inventoryRoutes from '../modules/inventory/inventory.routes.js';
 import ticketsRoutes from '../modules/support/tickets.routes.js';
 import dashboardRoutes from '../modules/dashboard/dashboard.routes.js';
 import userRoutes from '../modules/users/users.routes.js';
@@ -34,12 +38,14 @@ import todoRoutes from '../modules/todos/todos.routes.js';
 import todoGroupRoutes from '../modules/todo-groups/todo-groups.routes.js';
 import customerRoutes from '../modules/customers/customers.routes.js';
 import contactRoutes from '../modules/contacts/contacts.routes.js';
+import vendorsRoutes from '../modules/vendors/vendors.routes.js';
 
 router.use('/auth', authRoutes);
 router.use('/roles', roleRoutes);
 router.use('/users', userRoutes);
 router.use('/customers', customerRoutes);
 router.use('/contacts', contactRoutes);
+router.use('/vendors', vendorsRoutes);
 router.use('/user-invitations', userInvitationRoutes);
 router.use('/departments', departmentRoutes);
 router.use('/locations', locationRoutes);
@@ -58,6 +64,8 @@ router.use('/quotations', quotationRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/orders', ordersRoutes);
 router.use('/payments', paymentsRoutes);
+router.use('/purchase', purchaseRoutes);
+router.use('/inventory', inventoryRoutes);
 router.use('/tickets', ticketsRoutes);
 router.use('/dashboard', dashboardRoutes);
 

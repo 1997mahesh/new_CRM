@@ -14,7 +14,10 @@ export const errorMiddleware = (
   let message = err.message || 'Something went wrong';
 
   // Handle Prisma errors
-  if (err.code === 'P2002') {
+  if (err.name === 'PrismaClientValidationError') {
+    status = HttpStatus.BAD_REQUEST;
+    message = 'Data validation failed. Please check your input fields.';
+  } else if (err.code === 'P2002') {
     status = HttpStatus.BAD_REQUEST;
     const targets = err.meta?.target || [];
     message = `Unique constraint failed on field(s): ${targets.join(', ')}`;
