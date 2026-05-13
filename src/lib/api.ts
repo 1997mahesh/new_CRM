@@ -32,7 +32,7 @@ export const api = {
       return { success: response.ok, message: 'Invalid response format' };
     }
   },
-  post: async (path: string, data: any) => {
+  post: async (path: string, data: any = {}) => {
     const token = localStorage.getItem('token');
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
@@ -51,7 +51,7 @@ export const api = {
       return { success: response.ok, message: 'Invalid response format' };
     }
   },
-  put: async (path: string, data: any) => {
+  put: async (path: string, data: any = {}) => {
     const token = localStorage.getItem('token');
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'PUT',
@@ -70,7 +70,7 @@ export const api = {
       return { success: response.ok, message: 'Invalid response format' };
     }
   },
-  patch: async (path: string, data: any) => {
+  patch: async (path: string, data: any = {}) => {
     const token = localStorage.getItem('token');
     const response = await fetch(`${BASE_URL}${path}`, {
       method: 'PATCH',

@@ -374,16 +374,23 @@ model Invoice {
 }
 
 model Payment {
-  id            String   @id @default(uuid())
-  invoiceId     String
-  invoice       Invoice  @relation(fields: [invoiceId], references: [id])
-  amount        Float
-  date          DateTime @default(now())
-  method        String   // Cash, Bank Transfer, Credit Card, etc.
-  note          String?  @db.Text
-  reference     String?  // Transaction ID
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String    @id @default(uuid())
+  receiptNumber   String    @unique
+  invoiceId       String
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id])
+  customerId      String?
+  customerName    String?
+  amount          Float
+  date            DateTime  @default(now())
+  method          String    // Cash, Bank Transfer, Credit Card, etc.
+  status          String    @default("Success") // Success, Pending, Failed, Refunded, Processing
+  note            String?   @db.Text
+  reference       String?   // Transaction ID
+  refundAmount    Float?
+  refundDate      DateTime?
+  refundReason    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@map("payments")
 }

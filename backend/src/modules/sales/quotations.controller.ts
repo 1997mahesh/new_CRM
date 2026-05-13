@@ -119,19 +119,21 @@ export class QuotationsController extends BaseController {
       throw new Error('Quotation not found');
     }
 
-    // Generate new unique number using series
-    const newNumber = await getAndIncrementNextNumber('quotation');
+    return await (prisma as any).$transaction(async (tx: any) => {
+      // Generate new unique number using series
+      const newNumber = await getAndIncrementNextNumber('quotation', tx);
 
-    const { id, createdAt, updatedAt, ...data } = quotation as any;
-    
-    return await prisma.quotation.create({
-      data: {
-        ...data,
-        number: newNumber,
-        status: 'Draft',
-        issueDate: new Date(),
-        validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days later
-      }
+      const { id, createdAt, updatedAt, ...data } = quotation as any;
+      
+      return await tx.quotation.create({
+        data: {
+          ...data,
+          number: newNumber,
+          status: 'Draft',
+          issueDate: new Date(),
+          validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days later
+        }
+      });
     });
   });
 
@@ -153,35 +155,37 @@ export class QuotationsController extends BaseController {
       return existingOrder;
     }
 
-    const orderNumber = await getAndIncrementNextNumber('order');
+    return await (prisma as any).$transaction(async (tx: any) => {
+      const orderNumber = await getAndIncrementNextNumber('order', tx);
 
-    const order = await prisma.order.create({
-      data: {
-        number: orderNumber,
-        customerId: quotation.customerId,
-        customerName: quotation.customerName,
-        title: quotation.title,
-        issueDate: new Date(),
-        subtotal: quotation.subtotal,
-        discount: quotation.discount,
-        discountType: (quotation as any).discountType || 'Fixed',
-        discountValue: (quotation as any).discountValue || 0,
-        taxAmount: quotation.taxAmount,
-        totalAmount: quotation.totalAmount,
-        status: 'Draft',
-        items: quotation.items || [],
-        notes: quotation.notes,
-        terms: quotation.terms,
-        quotationId: quotation.id
-      }
+      const order = await tx.order.create({
+        data: {
+          number: orderNumber,
+          customerId: quotation.customerId,
+          customerName: quotation.customerName,
+          title: quotation.title,
+          issueDate: new Date(),
+          subtotal: quotation.subtotal,
+          discount: quotation.discount,
+          discountType: (quotation as any).discountType || 'Fixed',
+          discountValue: (quotation as any).discountValue || 0,
+          taxAmount: quotation.taxAmount,
+          totalAmount: quotation.totalAmount,
+          status: 'Draft',
+          items: quotation.items || [],
+          notes: quotation.notes,
+          terms: quotation.terms,
+          quotationId: quotation.id
+        }
+      });
+
+      // Update quotation status
+      await tx.quotation.update({
+        where: { id: quotation.id },
+        data: { status: 'Accepted' }
+      });
+
+      return order;
     });
-
-    // Update quotation status
-    await prisma.quotation.update({
-      where: { id: quotation.id },
-      data: { status: 'Accepted' }
-    });
-
-    return order;
   });
 }

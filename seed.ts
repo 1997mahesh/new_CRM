@@ -77,23 +77,30 @@ async function seed() {
   }
 
   // 4. Invoices (10)
-  for (let i = 1; i <= 10; i++) {
-    const amount = i * 1500;
-    const tax = amount * 0.15;
-    await prisma.invoice.create({
-      data: {
-        number: `INV-2026-${1000 + i}`,
-        customerId: `CUST-${i}`,
-        customerName: companies[i % companies.length],
-        issueDate: new Date(),
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        amount,
-        taxAmount: tax,
-        totalAmount: amount + tax,
-        status: i % 3 === 0 ? 'paid' : 'unpaid',
-        items: [{ description: "Professional Services", quantity: 1, price: amount, total: amount }]
-      }
-    });
+  const customers = await prisma.customer.findMany();
+  if (customers.length > 0) {
+    for (let i = 1; i <= 10; i++) {
+      const customer = customers[i % customers.length];
+      const amount = i * 1500;
+      const tax = amount * 0.15;
+      await prisma.invoice.upsert({
+        where: { number: `INV-2026-${1000 + i}` },
+        update: {},
+        create: {
+          number: `INV-2026-${1000 + i}`,
+          customerId: customer.id,
+          customerName: customer.name,
+          issueDate: new Date(),
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          amount,
+          taxAmount: tax,
+          totalAmount: amount + tax,
+          balance: i % 3 === 0 ? 0 : amount + tax,
+          status: i % 3 === 0 ? 'paid' : 'sent',
+          items: [{ description: "Professional Services", quantity: 1, price: amount, total: amount }]
+        }
+      });
+    }
   }
 
   // 5. Tickets (15)

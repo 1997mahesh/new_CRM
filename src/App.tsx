@@ -24,6 +24,8 @@ import { InvoiceCreatePage } from "./pages/sales/InvoiceCreate";
 import { InvoiceViewPage } from "./pages/sales/InvoiceView";
 import { InvoiceRecordPaymentPage } from "./pages/sales/InvoiceRecordPayment";
 import PaymentsPage from "./pages/sales/Payments";
+import PaymentCreatePage from "./pages/sales/PaymentCreate";
+import PaymentViewPage from "./pages/sales/PaymentView";
 import SalesForecastingPage from "./pages/sales/Forecast";
 import PurchaseDashboard from "./pages/purchase/PurchaseDashboard";
 import VendorsPage from "./pages/purchase/Vendors";
@@ -117,6 +119,8 @@ export default function App() {
           <Route path="/sales/invoices/:id/record-payment" element={<InvoiceRecordPaymentPage />} />
           <Route path="/sales/invoices/:id/edit" element={<InvoiceCreatePage />} />
           <Route path="/sales/payments" element={<PaymentsPage />} />
+          <Route path="/sales/payments/create" element={<PaymentCreatePage />} />
+          <Route path="/sales/payments/:id" element={<PaymentViewPage />} />
 
           {/* Purchase Module */}
           <Route path="/purchase/dashboard" element={<PurchaseDashboard />} />

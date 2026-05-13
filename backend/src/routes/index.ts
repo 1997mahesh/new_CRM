@@ -22,6 +22,7 @@ import leadsRoutes from '../modules/leads/leads.routes.js';
 import quotationRoutes from '../modules/sales/quotations.routes.js';
 import invoiceRoutes from '../modules/sales/invoices.routes.js';
 import ordersRoutes from '../modules/sales/orders.routes.js';
+import paymentsRoutes from '../modules/sales/payments.routes.js';
 import ticketsRoutes from '../modules/support/tickets.routes.js';
 import dashboardRoutes from '../modules/dashboard/dashboard.routes.js';
 import userRoutes from '../modules/users/users.routes.js';
@@ -56,6 +57,7 @@ router.use('/leads', leadsRoutes);
 router.use('/quotations', quotationRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/orders', ordersRoutes);
+router.use('/payments', paymentsRoutes);
 router.use('/tickets', ticketsRoutes);
 router.use('/dashboard', dashboardRoutes);
 

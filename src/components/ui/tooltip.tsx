@@ -25,10 +25,11 @@ function TooltipTrigger({
   children,
   ...props
 }: TooltipPrimitive.Trigger.Props & { asChild?: boolean }) {
+  const render = asChild ? (children as React.ReactElement) : undefined;
   return (
     <TooltipPrimitive.Trigger
       data-slot="tooltip-trigger"
-      render={asChild ? (children as React.ReactElement) : undefined}
+      render={render}
       {...props}
     >
       {!asChild && children}

@@ -5,17 +5,47 @@ import { getAndIncrementNextNumber } from '../../utils/number-series.js';
 
 export class InvoicesController extends BaseController {
   getAll = this.handleRequest(async (req: Request) => {
-    const { status, search, page = 1, limit = 10 } = req.query;
+    const { status, search, page = 1, limit = 10, customerId } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const where: any = {};
-    if (status && status !== 'all') where.status = status;
-    if (search) {
-      where.OR = [
-        { number: { contains: search as string, mode: 'insensitive' } },
-        { customerName: { contains: search as string, mode: 'insensitive' } },
-      ];
+    const conditions: any[] = [];
+    
+    if (customerId) {
+        const cId = String(customerId);
+        conditions.push({
+            OR: [
+                { customerId: cId },
+                { customerName: { contains: cId, mode: 'insensitive' } }
+            ]
+        });
     }
+
+    if (status && status !== 'all') {
+      let statusList: string[] = [];
+      if (typeof status === 'string') {
+        statusList = status.split(',');
+      } else if (Array.isArray(status)) {
+        statusList = status.map(s => String(s));
+      } else {
+        statusList = [String(status)];
+      }
+
+      // Normalize common status variations
+      if (statusList.includes('sent')) statusList.push('unpaid');
+      conditions.push({ status: { in: statusList } });
+    }
+
+    if (search) {
+      const s = String(search);
+      conditions.push({
+        OR: [
+          { number: { contains: s, mode: 'insensitive' } },
+          { customerName: { contains: s, mode: 'insensitive' } },
+        ]
+      });
+    }
+
+    const where = conditions.length > 0 ? { AND: conditions } : {};
 
     const [items, total] = await Promise.all([
       prisma.invoice.findMany({
@@ -179,25 +209,33 @@ export class InvoicesController extends BaseController {
       status = 'partial';
     }
 
-    return await prisma.$transaction([
-      prisma.payment.create({
+    return await (prisma as any).$transaction(async (tx: any) => {
+      const receiptNumber = await getAndIncrementNextNumber('RCP', tx);
+
+      const payment = await tx.payment.create({
         data: {
           invoiceId,
+          receiptNumber,
           amount: paymentAmount,
           date: date ? new Date(date) : new Date(),
           method,
           note,
-          reference
+          reference,
+          customerName: invoice.customerName,
+          customerId: invoice.customerId
         }
-      }),
-      prisma.invoice.update({
+      });
+
+      await tx.invoice.update({
         where: { id: invoiceId },
         data: {
           balance: newBalance < 0 ? 0 : newBalance,
           status
         }
-      })
-    ]);
+      });
+
+      return payment;
+    });
   });
 
   voidInvoice = this.handleRequest(async (req: Request) => {
@@ -214,28 +252,30 @@ export class InvoicesController extends BaseController {
 
     if (!original) throw new Error('Invoice not found');
 
-    const number = await getAndIncrementNextNumber('invoice');
+    return await (prisma as any).$transaction(async (tx: any) => {
+      const number = await getAndIncrementNextNumber('invoice', tx);
 
-    return await prisma.invoice.create({
-      data: {
-        number,
-        customerId: original.customerId,
-        customerName: original.customerName,
-        issueDate: new Date(),
-        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-        amount: original.amount,
-        discount: original.discount,
-        discountType: original.discountType,
-        discountValue: original.discountValue,
-        taxAmount: original.taxAmount,
-        totalAmount: original.totalAmount,
-        balance: original.totalAmount,
-        status: 'draft',
-        items: original.items || [],
-        notes: original.notes,
-        terms: original.terms,
-        orderId: original.orderId
-      }
+      return await tx.invoice.create({
+        data: {
+          number,
+          customerId: original.customerId,
+          customerName: original.customerName,
+          issueDate: new Date(),
+          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          amount: original.amount,
+          discount: original.discount,
+          discountType: original.discountType,
+          discountValue: original.discountValue,
+          taxAmount: original.taxAmount,
+          totalAmount: original.totalAmount,
+          balance: original.totalAmount,
+          status: 'draft',
+          items: original.items || [],
+          notes: original.notes,
+          terms: original.terms,
+          orderId: original.orderId
+        }
+      });
     });
   });
 
@@ -248,28 +288,30 @@ export class InvoicesController extends BaseController {
       throw new Error('Order not found');
     }
 
-    const number = await getAndIncrementNextNumber('invoice');
+    return await (prisma as any).$transaction(async (tx: any) => {
+      const number = await getAndIncrementNextNumber('invoice', tx);
 
-    return await prisma.invoice.create({
-      data: {
-        number,
-        customerId: order.customerId,
-        customerName: order.customerName,
-        issueDate: new Date(),
-        dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days later
-        amount: order.subtotal,
-        discount: order.discount,
-        discountType: order.discountType,
-        discountValue: order.discountValue,
-        taxAmount: order.taxAmount,
-        totalAmount: order.totalAmount,
-        balance: order.totalAmount,
-        status: 'sent', // Automatically set to sent when created from order usually
-        items: order.items || [],
-        notes: order.notes,
-        terms: order.terms,
-        orderId: order.id
-      }
+      return await tx.invoice.create({
+        data: {
+          number,
+          customerId: order.customerId,
+          customerName: order.customerName,
+          issueDate: new Date(),
+          dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000), // 15 days later
+          amount: order.subtotal,
+          discount: order.discount,
+          discountType: order.discountType,
+          discountValue: order.discountValue,
+          taxAmount: order.taxAmount,
+          totalAmount: order.totalAmount,
+          balance: order.totalAmount,
+          status: 'sent', // Automatically set to sent when created from order usually
+          items: order.items || [],
+          notes: order.notes,
+          terms: order.terms,
+          orderId: order.id
+        }
+      });
     });
   });
 }

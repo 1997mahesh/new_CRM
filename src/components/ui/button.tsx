@@ -45,19 +45,17 @@ function Button({
   variant = "default",
   size = "default",
   asChild = false,
+  nativeButton, // Destructure to prevent passing to DOM
   children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
-  const render = asChild ? (children as React.ReactElement) : props.render
-  const nativeButton = asChild ? false : props.nativeButton
-
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { asChild?: boolean; nativeButton?: boolean }) {
+  const render = asChild ? (children as React.ReactElement) : undefined;
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
       render={render}
-      nativeButton={nativeButton}
+      {...props}
     >
       {!asChild && children}
     </ButtonPrimitive>

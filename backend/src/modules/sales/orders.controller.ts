@@ -120,18 +120,20 @@ export class OrdersController extends BaseController {
       throw new Error('Order not found');
     }
 
-    const newNumber = await getAndIncrementNextNumber('order');
+    return await (prisma as any).$transaction(async (tx: any) => {
+      const newNumber = await getAndIncrementNextNumber('order', tx);
 
-    const { id, createdAt, updatedAt, ...data } = order as any;
-    
-    return await prisma.order.create({
-      data: {
-        ...data,
-        number: newNumber,
-        status: 'Draft',
-        issueDate: new Date(),
-        deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null
-      }
+      const { id, createdAt, updatedAt, ...data } = order as any;
+      
+      return await tx.order.create({
+        data: {
+          ...data,
+          number: newNumber,
+          status: 'Draft',
+          issueDate: new Date(),
+          deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null
+        }
+      });
     });
   });
 }

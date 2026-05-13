@@ -22,8 +22,11 @@ export const prisma = globalForPrisma.prisma || new PrismaClient({
           // We can try to retry once if it's a connection-related error
           if (attempt < 3 && (
             error.message?.includes('E57P01') || 
+            error.message?.includes('terminating connection') ||
+            error.message?.includes('closed unexpectedly') ||
             error.message?.includes('connection') ||
-            error.code === 'P2024' // Connection timeout
+            error.code === 'P2024' || // Connection timeout
+            error.code === 'P1017'    // Server has closed the connection
           )) {
             console.log(`Retrying ${operation} on ${model} (attempt ${attempt + 1})...`);
             // Wait a bit before retrying
