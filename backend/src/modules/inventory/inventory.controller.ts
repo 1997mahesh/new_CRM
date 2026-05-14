@@ -77,7 +77,6 @@ export class InventoryController extends BaseController {
     // Calculate real metrics from all items for accuracy (if DB is small enough)
     const allItems = await prisma.inventory.findMany({
       where,
-      select: { id: true, name: true, sku: true, currentStock: true, costPrice: true, categoryId: true },
       include: { category: { select: { name: true } } }
     });
 
