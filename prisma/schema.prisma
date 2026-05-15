@@ -39,7 +39,7 @@ model User {
   updatedAt          DateTime  @updatedAt
   auditLogs          AuditLog[]
   assignedLeads      Lead[]
-  assignedTickets    Ticket[]
+  assignedTickets    Ticket[]  @relation("TicketAssignee")
   todos              Todo[]    @relation("TodoAssignees")
   assignedCustomers  Customer[] @relation("CustomerAssignee")
   assignedContacts   Contact[]  @relation("ContactAssignee")
@@ -48,6 +48,8 @@ model User {
   managedWarehouses   Warehouse[]         @relation("WarehouseManager")
   createdMovements    StockMovement[]     @relation("MovementCreator")
   approvedAdjustments InventoryAdjustment[] @relation("AdjustmentApprover")
+  ticketNotes         TicketNote[]
+  ticketMessages      TicketMessage[]
 
   @@map("users")
 }
@@ -227,7 +229,9 @@ model Activity {
 model InventoryCategory {
   id          String      @id @default(uuid())
   name        String      @unique
+  slug        String      @unique
   description String?
+  status      String      @default("Active") // Active, Inactive
   products    Inventory[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -265,6 +269,9 @@ model Inventory {
   reorderLevel  Int       @default(15)
   unit          String    @default("pc") // pc, kg, ltr, box, etc.
   status        String    @default("In Stock") // In Stock, Low Stock, Out of Stock, Overstocked
+  type          String    @default("Product") // Product, Service
+  isTracked     Boolean   @default(true)
+  isActive      Boolean   @default(true)
   warehouseId   String?
   warehouse     Warehouse? @relation(fields: [warehouseId], references: [id])
   
@@ -283,8 +290,10 @@ model StockMovement {
   product       Inventory @relation(fields: [productId], references: [id])
   warehouseId   String?
   warehouse     Warehouse? @relation(fields: [warehouseId], references: [id])
-  type          String    // IN, OUT, ADJUSTMENT, TRANSFER
+  type          String    // IN, OUT, ADJUSTMENT, TRANSFER, DAMAGED, RETURNED
   quantity      Int
+  beforeStock   Int       @default(0)
+  afterStock    Int       @default(0)
   referenceType String?   // PURCHASE_ORDER, SALES_ORDER, MANUAL, INVOICE, BILL, ADJUSTMENT
   referenceId   String?
   cost          Float?    // Unit cost at the time of movement
@@ -377,6 +386,7 @@ model Customer {
   notes           String?  @db.Text
   address         String?  @db.Text
   contacts        Contact[]
+  tickets         Ticket[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -412,20 +422,69 @@ model Contact {
 
 model Ticket {
   id              String   @id @default(uuid())
+  ticketNumber    String?  @unique
   subject         String
   customerId      String?
   customerName    String?  // If not linked to Customer
+  customer        Customer? @relation(fields: [customerId], references: [id])
   department      String
+  category        String?
   priority        String   @default("Medium")
   status          String   @default("Open")
+  source          String   @default("Web")
+  slaDueDate      DateTime?
   assignedUserId  String?
-  assignedUser    User?    @relation(fields: [assignedUserId], references: [id])
+  assignedUser    User?    @relation("TicketAssignee", fields: [assignedUserId], references: [id])
   description     String   @db.Text
   attachmentUrl   String?
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  lastActivityAt  DateTime @default(now())
+  ticketActivities TicketActivity[]
+  notes           TicketNote[]
+  messages        TicketMessage[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@map("tickets")
+}
+
+model TicketActivity {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      String?
+  action      String   // Ticket Created, Priority Changed, Status Changed, Assigned, Reopened, Note Added
+  oldValue    String?
+  newValue    String?
+  createdAt   DateTime @default(now())
+
+  @@map("ticket_activities")
+}
+
+model TicketNote {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      String?
+  author      User?    @relation(fields: [userId], references: [id])
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@map("ticket_notes")
+}
+
+model TicketMessage {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  userId      String?
+  author      User?    @relation(fields: [userId], references: [id])
+  isCustomer  Boolean  @default(false)
+  content     String   @db.Text
+  createdAt   DateTime @default(now())
+
+  @@map("ticket_messages")
 }
 
 model Invoice {

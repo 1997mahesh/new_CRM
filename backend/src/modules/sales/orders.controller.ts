@@ -59,8 +59,8 @@ export class OrdersController extends BaseController {
         customerId,
         customerName,
         title,
-        issueDate: issueDate ? new Date(issueDate) : new Date(),
-        deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
+        issueDate: (issueDate && issueDate !== "") ? new Date(issueDate) : new Date(),
+        deliveryDate: (deliveryDate && deliveryDate !== "") ? new Date(deliveryDate) : null,
         subtotal: parseFloat(subtotal) || 0,
         discount: parseFloat(discount) || 0,
         discountType: discountType || 'Fixed',
@@ -89,8 +89,8 @@ export class OrdersController extends BaseController {
         customerId,
         customerName,
         title,
-        issueDate: issueDate ? new Date(issueDate) : undefined,
-        deliveryDate: deliveryDate ? new Date(deliveryDate) : undefined,
+        issueDate: (issueDate && issueDate !== "") ? new Date(issueDate) : undefined,
+        deliveryDate: (deliveryDate && deliveryDate !== "") ? new Date(deliveryDate) : undefined,
         subtotal: subtotal !== undefined ? parseFloat(subtotal) : undefined,
         discount: discount !== undefined ? parseFloat(discount) : undefined,
         discountType,
@@ -131,7 +131,7 @@ export class OrdersController extends BaseController {
           number: newNumber,
           status: 'Draft',
           issueDate: new Date(),
-          deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null
+          deliveryDate: (data.deliveryDate && data.deliveryDate !== "") ? new Date(data.deliveryDate) : null
         }
       });
     });

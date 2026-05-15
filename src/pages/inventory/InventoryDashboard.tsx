@@ -46,9 +46,13 @@ export default function InventoryDashboard() {
   const [stats, setStats] = useState<any>(null);
   const [warehouses, setWarehouses] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [filters, setFilters] = useState({
-    warehouseId: "all",
-    categoryId: "all"
+    warehouseId: "",
+    categoryId: "",
+    vendorId: "",
+    status: "",
+    dateRange: ""
   });
   const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
   const [stockEntryForm, setStockEntryForm] = useState({
@@ -66,19 +70,24 @@ export default function InventoryDashboard() {
     try {
       setLoading(true);
       const params: any = {};
-      if (filters.warehouseId !== "all") params.warehouseId = filters.warehouseId;
-      if (filters.categoryId !== "all") params.categoryId = filters.categoryId;
+      if (filters.warehouseId) params.warehouseId = filters.warehouseId;
+      if (filters.categoryId) params.categoryId = filters.categoryId;
+      if (filters.vendorId) params.vendorId = filters.vendorId;
+      if (filters.status) params.status = filters.status;
+      if (filters.dateRange) params.dateRange = filters.dateRange;
 
-      const [dashboardRes, whRes, catRes, prodRes] = await Promise.all([
+      const [dashboardRes, whRes, catRes, vendRes, prodRes] = await Promise.all([
         api.get("/inventory/dashboard", params),
         api.get("/inventory/warehouses"),
         api.get("/inventory/categories"),
+        api.get("/vendors"),
         api.get("/inventory/products")
       ]);
 
       setStats(dashboardRes.data);
       setWarehouses(whRes.data || []);
       setCategories(catRes.data || []);
+      setVendors(vendRes.data || []);
       setProducts(prodRes.data || []);
     } catch (error) {
       console.error("Dashboard data fetch error:", error);
@@ -237,47 +246,96 @@ export default function InventoryDashboard() {
         </div>
       </div>
 
-      {/* Filters */}
-      <Card className="p-4 border-slate-100 dark:border-white/5 bg-white dark:bg-[#211c1f] flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-slate-400" />
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest italic leading-none">Filters:</span>
+      {/* Filters Bar */}
+      <Card className="p-3 border-slate-200 dark:border-white/5 bg-white dark:bg-[#1C1F26] shadow-sm rounded-xl">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="flex items-center gap-2 border-r border-slate-100 dark:border-white/5 pr-4 mr-1 hidden md:flex">
+            <Filter className="h-4 w-4 text-slate-400" />
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Filters</span>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-row flex-1 items-center gap-2">
+            <Select 
+                value={filters.warehouseId} 
+                onValueChange={(v) => setFilters(p => ({ ...p, warehouseId: v }))}
+            >
+                <SelectTrigger className="flex-1 lg:w-[150px] h-9 text-[11px] font-bold italic bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 rounded-lg">
+                    <SelectValue placeholder="All Warehouses" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="">All Warehouses</SelectItem>
+                    {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
+                </SelectContent>
+            </Select>
+
+            <Select 
+                value={filters.categoryId} 
+                onValueChange={(v) => setFilters(p => ({ ...p, categoryId: v }))}
+            >
+                <SelectTrigger className="flex-1 lg:w-[150px] h-9 text-[11px] font-bold italic bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 rounded-lg">
+                    <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="">All Categories</SelectItem>
+                    {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+            </Select>
+
+            <Select 
+                value={filters.vendorId} 
+                onValueChange={(v) => setFilters(p => ({ ...p, vendorId: v }))}
+            >
+                <SelectTrigger className="flex-1 lg:w-[150px] h-9 text-[11px] font-bold italic bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 rounded-lg">
+                    <SelectValue placeholder="All Vendors" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="">All Vendors</SelectItem>
+                    {vendors.map(v => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                </SelectContent>
+            </Select>
+
+            <Select 
+                value={filters.dateRange} 
+                onValueChange={(v) => setFilters(p => ({ ...p, dateRange: v }))}
+            >
+                <SelectTrigger className="flex-1 lg:w-[160px] h-9 text-[11px] font-bold italic bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 rounded-lg">
+                    <Calendar className="h-3 w-3 mr-2 text-slate-400" />
+                    <SelectValue placeholder="All Date Ranges" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="">All Date Ranges</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="quarter">This Quarter</SelectItem>
+                </SelectContent>
+            </Select>
+
+            <Select 
+                value={filters.status} 
+                onValueChange={(v) => setFilters(p => ({ ...p, status: v }))}
+            >
+                <SelectTrigger className="flex-1 lg:w-[140px] h-9 text-[11px] font-bold italic bg-slate-50 dark:bg-white/5 border-slate-100 dark:border-white/5 rounded-lg">
+                    <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="">All Statuses</SelectItem>
+                    <SelectItem value="In Stock">In Stock</SelectItem>
+                    <SelectItem value="Low Stock">Low Stock</SelectItem>
+                    <SelectItem value="Out of Stock">Out of Stock</SelectItem>
+                </SelectContent>
+            </Select>
+
+            <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setFilters({ warehouseId: "", categoryId: "", vendorId: "", status: "", dateRange: "" })}
+                className="h-9 px-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 italic hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+            >
+                Reset
+            </Button>
+          </div>
         </div>
-        
-        <Select 
-            value={filters.warehouseId} 
-            onValueChange={(v) => setFilters(p => ({ ...p, warehouseId: v }))}
-        >
-            <SelectTrigger className="w-[180px] h-9 text-xs font-bold italic border-none bg-slate-50 dark:bg-white/5">
-                <SelectValue placeholder="All Warehouses" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">All Warehouses</SelectItem>
-                {warehouses.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}
-            </SelectContent>
-        </Select>
-
-        <Select 
-            value={filters.categoryId} 
-            onValueChange={(v) => setFilters(p => ({ ...p, categoryId: v }))}
-        >
-            <SelectTrigger className="w-[180px] h-9 text-xs font-bold italic border-none bg-slate-50 dark:bg-white/5">
-                <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-            </SelectContent>
-        </Select>
-
-        <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setFilters({ warehouseId: "all", categoryId: "all" })}
-            className="text-xs font-bold text-slate-400 hover:text-blue-600 h-9 italic"
-        >
-            Reset
-        </Button>
       </Card>
 
       {/* Summary Cards */}

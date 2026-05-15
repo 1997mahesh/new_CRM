@@ -34,6 +34,11 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { 
+  calculateLineTotal, 
+  calculateProcurementTotals, 
+  formatCurrency 
+} from "@/lib/procurement-calculations";
 
 export default function PurchaseOrderViewPage() {
   const { id } = useParams();
@@ -103,45 +108,76 @@ export default function PurchaseOrderViewPage() {
       </div>
 
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-soft border border-slate-100">
         <div className="flex items-center gap-4">
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => navigate("/purchase/orders")}
-            className="rounded-full hover:bg-slate-100"
+            className="rounded-full hover:bg-slate-100 shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{po.number}</h1>
+              <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">{po.number}</h1>
               <Badge className={cn(
                 "text-[10px] font-bold uppercase tracking-widest px-3 py-1 border-none shadow-sm",
-                po.status === "Received" ? "bg-emerald-50 text-emerald-600" : 
-                po.status === "Partially Received" ? "bg-amber-50 text-amber-600" : 
-                po.status === "Sent" ? "bg-blue-50 text-blue-600" :
-                po.status === "Cancelled" ? "bg-rose-50 text-rose-600" :
+                po.status === "Received" ? "bg-emerald-100 text-emerald-700" : 
+                po.status === "Partially Received" ? "bg-amber-100 text-amber-700" : 
+                po.status === "Sent" ? "bg-blue-100 text-blue-700" :
+                po.status === "Cancelled" ? "bg-rose-100 text-rose-700" :
                 "bg-slate-100 text-slate-500"
               )}>
                 {po.status}
               </Badge>
             </div>
-            <p className="text-sm text-slate-500 mt-1 flex items-center gap-2 italic">
-              <Building2 className="h-3.5 w-3.5" /> Ordered from <span className="font-bold text-slate-800">{po.vendorName}</span>
-            </p>
+            <div className="flex items-center gap-4 mt-2">
+              <p className="text-xs text-slate-500 flex items-center gap-1.5 italic">
+                <Building2 className="h-3.5 w-3.5" /> <span className="font-bold text-slate-700">{po.vendorName}</span>
+              </p>
+              <Separator orientation="vertical" className="h-3 shadow-none" />
+              <p className="text-xs text-slate-500 flex items-center gap-1.5 italic">
+                <Calendar className="h-3.5 w-3.5" /> Created on <span className="font-bold text-slate-700">{format(new Date(po.issueDate), "MMM dd, yyyy")}</span>
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="outline" className="rounded-xl border-slate-200 font-bold gap-2">
-            <Download className="h-4 w-4" /> Export PDF
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="rounded-xl border-slate-200 font-bold gap-2 text-xs">
+            <Printer className="h-3.5 w-3.5 text-slate-400" /> Print PO
+          </Button>
+          <Button variant="outline" size="sm" className="rounded-xl border-slate-200 font-bold gap-2 text-xs">
+            <Download className="h-3.5 w-3.5 text-slate-400" /> PDF
           </Button>
           
+          <Separator orientation="vertical" className="h-8 mx-1 hidden sm:block shadow-none" />
+
+          {po.status !== "Received" && po.status !== "Cancelled" && (
+            <Button 
+              size="sm"
+              onClick={() => navigate(`/purchase/orders/${id}/receive`)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-600/20 font-bold gap-2 text-xs"
+            >
+              <Truck className="h-3.5 w-3.5" /> Receive
+            </Button>
+          )}
+
+          {po.status !== "Received" && po.status !== "Cancelled" && (
+            <Button 
+              size="sm"
+              onClick={handleCreateBill}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 font-bold gap-2 text-xs"
+            >
+              <Receipt className="h-3.5 w-3.5" /> Create Bill
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="rounded-xl border-slate-200 font-bold gap-2">
-                Actions <MoreHorizontal className="h-4 w-4 text-slate-400" />
+              <Button variant="ghost" size="icon" className="rounded-xl border-slate-200 hover:bg-slate-50">
+                <MoreHorizontal className="h-4 w-4 text-slate-400" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48 rounded-xl p-1 border-slate-100 shadow-xl">
@@ -153,102 +189,113 @@ export default function PurchaseOrderViewPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-
-          {po.status !== "Received" && po.status !== "Cancelled" && (
-            <Button 
-              onClick={() => navigate(`/purchase/orders/${id}/receive`)}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-600/20 font-bold gap-2"
-            >
-              <Truck className="h-4 w-4" /> Received Goods
-            </Button>
-          )}
-
-          {po.status !== "Received" && po.status !== "Cancelled" && (
-            <Button 
-              onClick={handleCreateBill}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-600/20 font-bold gap-2"
-            >
-              <CreditCard className="h-4 w-4" /> Create Bill
-            </Button>
-          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Main Details */}
         <div className="lg:col-span-3 space-y-6">
-          <Card className="border-none shadow-soft rounded-2xl overflow-hidden">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 px-6 py-4">
-              <CardTitle className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <Package className="h-4 w-4 text-indigo-600" /> Ordered Items
-              </CardTitle>
-            </CardHeader>
+          <Card className="border-none shadow-soft rounded-2xl overflow-hidden border border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-tighter">
+                <Package className="h-4 w-4 text-indigo-600" /> Ordered Products
+              </h3>
+              <Badge variant="outline" className="bg-white text-slate-500 font-bold text-[10px] uppercase tracking-widest border-slate-200">
+                {po.items?.length || 0} Positions
+              </Badge>
+            </div>
             <CardContent className="p-0">
-               <div className="overflow-x-auto">
-                 <table className="w-full text-left">
+               <div className="overflow-x-auto text-[13px]">
+                 <table className="w-full text-left border-collapse">
                    <thead>
-                     <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-400 border-b border-slate-100 bg-slate-50/30">
-                       <th className="px-6 py-3">Product Description</th>
-                       <th className="px-4 py-3 text-center">Qty</th>
-                       <th className="px-4 py-3 text-center">Received</th>
-                       <th className="px-4 py-3 text-right">Unit Price</th>
-                       <th className="px-4 py-3 text-center">Tax %</th>
-                       <th className="px-4 py-3 text-right">Total</th>
+                     <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-400 border-b border-slate-100 bg-white">
+                       <th className="px-6 py-4">Product Details</th>
+                       <th className="px-4 py-4 text-center">Qty</th>
+                       <th className="px-4 py-4 text-center">Received</th>
+                       <th className="px-4 py-4 text-right">Unit Price</th>
+                       <th className="px-4 py-4 text-center">Tax</th>
+                       <th className="px-4 py-4 text-center">Disc</th>
+                       <th className="px-6 py-4 text-right">Line Total</th>
                      </tr>
                    </thead>
-                   <tbody className="divide-y divide-slate-50 text-xs">
-                     {Array.isArray(po.items) && po.items.map((item: any) => (
-                       <tr key={item.id} className="hover:bg-slate-50/20 transition-colors">
-                         <td className="px-6 py-4">
-                           <div className="flex flex-col">
-                             <span className="font-bold text-slate-800">{item.productName}</span>
-                             <span className="text-[10px] text-slate-500 italic mt-0.5">{item.description}</span>
-                           </div>
-                         </td>
-                         <td className="px-4 py-4 text-center font-bold text-slate-700">{item.quantity}</td>
-                         <td className="px-4 py-4 text-center">
-                            <Badge className={cn(
-                              "text-[10px] font-bold px-2 py-0.5 border-none",
-                              item.receivedQuantity >= item.quantity ? "bg-emerald-50 text-emerald-600" :
-                              item.receivedQuantity > 0 ? "bg-amber-50 text-amber-600" :
-                              "bg-slate-50 text-slate-300"
-                            )}>
-                              {item.receivedQuantity}
-                            </Badge>
-                         </td>
-                         <td className="px-4 py-4 text-right font-mono text-slate-600">
-                           {item.unitPrice.toLocaleString('en-US', { style: 'currency', currency: po.currency })}
-                         </td>
-                         <td className="px-4 py-4 text-center text-slate-500">{item.taxPercent}%</td>
-                         <td className="px-4 py-4 text-right font-bold text-slate-800 font-mono">
-                           {item.totalAmount.toLocaleString('en-US', { style: 'currency', currency: po.currency })}
+                   <tbody className="divide-y divide-slate-50">
+                     {(!po.items || po.items.length === 0) ? (
+                       <tr>
+                         <td colSpan={7} className="px-6 py-12 text-center text-slate-400 italic">
+                            No products added to this order yet.
                          </td>
                        </tr>
-                     ))}
+                     ) : (
+                       po.items.map((item: any) => {
+                         const lineDetails = calculateLineTotal({
+                           quantity: item.quantity,
+                           unitPrice: item.unitPrice,
+                           taxPercent: item.taxPercent,
+                           discountType: item.discountType || 'Fixed',
+                           discountValue: item.discountValue || 0
+                         });
+                         
+                         return (
+                           <tr key={item.id} className="hover:bg-slate-50/20 transition-colors group">
+                             <td className="px-6 py-4">
+                               <div className="flex flex-col">
+                                 <span className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{item.productName}</span>
+                                 <span className="text-[11px] text-slate-400 italic mt-0.5 line-clamp-1">{item.description || "No description"}</span>
+                               </div>
+                             </td>
+                             <td className="px-4 py-4 text-center font-bold text-slate-600">{item.quantity}</td>
+                             <td className="px-4 py-4 text-center">
+                                <Badge className={cn(
+                                  "text-[10px] font-bold px-2 py-0.5 border-none shadow-none",
+                                  item.receivedQuantity >= item.quantity ? "bg-emerald-50 text-emerald-600" :
+                                  item.receivedQuantity > 0 ? "bg-amber-50 text-amber-600" :
+                                  "bg-slate-50 text-slate-400"
+                                )}>
+                                  {item.receivedQuantity || 0}
+                                </Badge>
+                             </td>
+                             <td className="px-4 py-4 text-right font-mono text-slate-500">
+                               {formatCurrency(item.unitPrice, po.currency)}
+                             </td>
+                             <td className="px-4 py-4 text-center text-slate-400 font-medium">
+                               {item.taxPercent > 0 ? `${item.taxPercent}%` : "-"}
+                             </td>
+                             <td className="px-4 py-4 text-center text-rose-400 font-medium whitespace-nowrap">
+                               {lineDetails.discountAmount > 0 ? `-${formatCurrency(lineDetails.discountAmount, po.currency)}` : "-"}
+                             </td>
+                             <td className="px-6 py-4 text-right font-black text-slate-800 font-mono">
+                               {formatCurrency(lineDetails.lineTotal, po.currency)}
+                             </td>
+                           </tr>
+                         );
+                       })
+                     )}
                    </tbody>
                  </table>
                </div>
             </CardContent>
-            <div className="p-6 bg-slate-50/30 border-t border-slate-100 flex flex-col md:flex-row justify-between gap-6 mr-0 ml-auto w-full md:w-[400px]">
-               <div className="space-y-3">
-                 <div className="flex justify-between text-sm">
-                   <span className="text-slate-500 italic">Subtotal</span>
-                   <span className="font-bold text-slate-700">{po.subtotal.toLocaleString('en-US', { style: 'currency', currency: po.currency })}</span>
-                 </div>
-                 <div className="flex justify-between text-sm">
-                   <span className="text-slate-500 italic">Discount</span>
-                   <span className="font-bold text-rose-500">-{po.discountAmount.toLocaleString('en-US', { style: 'currency', currency: po.currency })}</span>
-                 </div>
-                 <div className="flex justify-between text-sm border-b border-slate-100 pb-2">
-                   <span className="text-slate-500 italic">Tax</span>
-                   <span className="font-bold text-slate-700">{po.taxAmount.toLocaleString('en-US', { style: 'currency', currency: po.currency })}</span>
-                 </div>
-                 <div className="flex justify-between pt-1">
-                   <span className="text-lg font-bold text-slate-800 uppercase tracking-tighter">Total</span>
-                   <span className="text-2xl font-black text-indigo-600 font-mono tracking-tighter">
-                     {po.totalAmount.toLocaleString('en-US', { style: 'currency', currency: po.currency })}
-                   </span>
-                 </div>
+            
+            <div className="bg-slate-50/50 p-6 flex flex-col md:flex-row justify-end border-t border-slate-100">
+               <div className="w-full md:w-80 space-y-3">
+                  <div className="flex justify-between text-[13px]">
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Sub Total</span>
+                    <span className="font-bold text-slate-700 font-mono tracking-tight">{formatCurrency(po.subtotal, po.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-[13px]">
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Total Tax</span>
+                    <span className="font-bold text-slate-700 font-mono tracking-tight">{formatCurrency(po.taxAmount, po.currency)}</span>
+                  </div>
+                  <div className="flex justify-between text-[13px]">
+                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Total Discount</span>
+                    <span className="font-bold text-rose-500 font-mono tracking-tight">-{formatCurrency(po.discountAmount, po.currency)}</span>
+                  </div>
+                  <Separator className="bg-slate-200" />
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-black text-slate-800 uppercase tracking-tighter">Grand Total</span>
+                    <span className="text-2xl font-black text-indigo-600 font-mono tracking-tighter">
+                      {formatCurrency(po.totalAmount, po.currency)}
+                    </span>
+                  </div>
                </div>
             </div>
           </Card>
@@ -347,76 +394,86 @@ export default function PurchaseOrderViewPage() {
 
         {/* Sidebar Info */}
         <div className="space-y-6">
-          <Card className="border-none shadow-soft rounded-2xl overflow-hidden bg-white">
-            <CardHeader className="bg-slate-50/20 border-b border-slate-100">
-               <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-400">Order Details</CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
+          <Card className="border-none shadow-soft rounded-2xl overflow-hidden bg-white border border-slate-100">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
+               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Order Logistics</h3>
+            </div>
+            <CardContent className="p-6 space-y-5">
                <div className="space-y-4">
-                  <div className="flex items-start gap-4">
-                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
-                      <Calendar className="h-4 w-4 text-slate-400" />
+                  <div className="flex items-start gap-4 group">
+                    <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center border border-indigo-100 shrink-0 group-hover:scale-110 transition-transform">
+                      <Calendar className="h-5 w-5 text-indigo-500" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order Date</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Order Date</p>
                       <p className="text-sm font-bold text-slate-700 italic">{format(new Date(po.issueDate), 'MMMM dd, yyyy')}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
-                      <Truck className="h-4 w-4 text-slate-400" />
+                  <div className="flex items-start gap-4 group">
+                    <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center border border-amber-100 shrink-0 group-hover:scale-110 transition-transform">
+                      <Truck className="h-5 w-5 text-amber-500" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Expected Delivery</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Target Delivery</p>
                       <p className="text-sm font-bold text-slate-700 italic">
-                        {po.expectedDelivery ? format(new Date(po.expectedDelivery), 'MMMM dd, yyyy') : "Not Set"}
+                        {po.expectedDelivery ? format(new Date(po.expectedDelivery), 'MMMM dd, yyyy') : "Not Specified"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
-                      <User className="h-4 w-4 text-slate-400" />
+                  <div className="flex items-start gap-4 group">
+                    <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center border border-blue-100 shrink-0 group-hover:scale-110 transition-transform">
+                      <User className="h-5 w-5 text-blue-500" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor Contact</p>
-                      <p className="text-sm font-bold text-slate-700 italic">{po.vendor?.contactPerson || po.vendorName}</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor Liaison</p>
+                      <p className="text-sm font-bold text-slate-700 italic">{po.vendor?.contactPerson || "In-charge"}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-4">
-                    <div className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
-                      <Hash className="h-4 w-4 text-slate-400" />
+                  <Separator className="bg-slate-100" />
+
+                  <div className="flex items-start gap-4 group">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-100 shrink-0 group-hover:scale-110 transition-transform">
+                      <Hash className="h-5 w-5 text-emerald-500" />
                     </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Currency</p>
-                      <p className="text-sm font-bold text-slate-700 italic">{po.currency}</p>
+                    <div className="w-full">
+                      <div className="flex justify-between w-full">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Currency</p>
+                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 text-[9px] font-bold h-4 px-1.5">{po.currency}</Badge>
+                      </div>
+                      <p className="text-sm font-bold text-slate-700 italic">Standard {po.currency} Format</p>
                     </div>
                   </div>
                </div>
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-soft rounded-2xl overflow-hidden bg-white">
-            <CardHeader className="bg-slate-50/20 border-b border-slate-100">
-               <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-400">Terms & Conditions</CardTitle>
-            </CardHeader>
+          <Card className="border-none shadow-soft rounded-2xl overflow-hidden bg-white border border-slate-100">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
+               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Payment Terms</h3>
+            </div>
             <CardContent className="p-6">
-               <p className="text-xs text-slate-500 leading-relaxed italic">
-                 {po.terms || "Standard delivery and payment terms apply. Payment to be made via bank transfer within 30 days."}
-               </p>
+               <div className="bg-slate-50 rounded-xl p-4 border border-dashed border-slate-200">
+                 <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                   {po.terms || "Standard trade terms: Net 30 days. Please include PO number on all shipping labels and invoices."}
+                 </p>
+               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-none shadow-soft rounded-2xl overflow-hidden bg-white">
-            <CardHeader className="bg-slate-50/20 border-b border-slate-100">
-               <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-400">Internal Notes</CardTitle>
-            </CardHeader>
+          <Card className="border-none shadow-soft rounded-2xl overflow-hidden bg-white border border-slate-100">
+            <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
+               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Instructional Notes</h3>
+            </div>
             <CardContent className="p-6">
-               <p className="text-xs text-slate-500 leading-relaxed italic">
-                 {po.notes || "No special internal notes recorded for this order."}
-               </p>
+               <div className="flex gap-3">
+                 <FileText className="h-4 w-4 text-slate-300 mt-0.5 shrink-0" />
+                 <p className="text-[11px] text-slate-500 leading-relaxed italic">
+                   {po.notes || "No special internal handling instructions for this procurement request."}
+                 </p>
+               </div>
             </CardContent>
           </Card>
         </div>

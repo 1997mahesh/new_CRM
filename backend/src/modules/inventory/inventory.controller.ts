@@ -4,18 +4,37 @@ import prisma from '../../prisma/index.js';
 
 export class InventoryController extends BaseController {
   dashboard = this.handleRequest(async (req: Request) => {
-    const { warehouseId, categoryId, vendorId } = req.query;
+    const { warehouseId, categoryId, vendorId, status, dateRange } = req.query;
     
     const where: any = {};
-    if (warehouseId) where.warehouseId = String(warehouseId);
-    if (categoryId) where.categoryId = String(categoryId);
-    if (vendorId) where.vendorId = String(vendorId);
+    if (warehouseId && warehouseId !== 'all') where.warehouseId = String(warehouseId);
+    if (categoryId && categoryId !== 'all') where.categoryId = String(categoryId);
+    if (vendorId && vendorId !== 'all') where.vendorId = String(vendorId);
+    if (status && status !== 'all') where.status = String(status);
+
+    // Date range handling for movements
+    const dateQuery: any = {};
+    if (dateRange && dateRange !== 'all') {
+      const now = new Date();
+      if (dateRange === 'today') {
+        dateQuery.gte = new Date(now.setHours(0, 0, 0, 0));
+      } else if (dateRange === 'week') {
+        const lastWeek = new Date(now.setDate(now.getDate() - 7));
+        dateQuery.gte = lastWeek;
+      } else if (dateRange === 'month') {
+        const lastMonth = new Date(now.setMonth(now.getMonth() - 1));
+        dateQuery.gte = lastMonth;
+      } else if (dateRange === 'quarter') {
+        const lastQuarter = new Date(now.setMonth(now.getMonth() - 3));
+        dateQuery.gte = lastQuarter;
+      }
+    }
 
     const [
       totalProducts,
       lowStockCount,
       outOfStockCount,
-      allProductsValue,
+      _sumStock, // Placeholder for sum
       _topValueProducts, // Not used directly, calculated later
       _categoryValueDistribution, // Not used directly, calculated later
       recentMovementsRaw,
@@ -41,8 +60,11 @@ export class InventoryController extends BaseController {
         } 
       }),
       
-      // Placeholder for aggregate (Prisma doesn't support sum(currentStock * costPrice) directly)
-      prisma.inventory.aggregate({ where, _count: true }),
+      // Aggregate sum
+      prisma.inventory.aggregate({ 
+        where, 
+        _sum: { currentStock: true } 
+      }),
 
       // Top Products by Value (Placeholder)
       prisma.inventory.findMany({ where, take: 1, select: { id: true } }),
@@ -52,7 +74,10 @@ export class InventoryController extends BaseController {
 
       // Recent Movements
       prisma.stockMovement.findMany({
-        where: warehouseId ? { warehouseId: String(warehouseId) } : {},
+        where: {
+            ...(warehouseId && warehouseId !== 'all' ? { warehouseId: String(warehouseId) } : {}),
+            ...(dateQuery.gte ? { date: dateQuery } : {})
+        },
         orderBy: { date: 'desc' },
         take: 10,
         include: {
@@ -167,7 +192,8 @@ export class InventoryController extends BaseController {
           orderBy: { date: 'desc' },
           take: 50,
           include: {
-            warehouse: true
+            warehouse: true,
+            creator: true
           }
         }
       }
@@ -176,7 +202,7 @@ export class InventoryController extends BaseController {
   });
 
   create = this.handleRequest(async (req: Request) => {
-    const data = req.body;
+    const { id, ...data } = req.body;
     const userId = (req as any).user?.id;
 
     if (!data.status) {
@@ -211,7 +237,7 @@ export class InventoryController extends BaseController {
 
   update = this.handleRequest(async (req: Request) => {
     const { id } = req.params;
-    const data = req.body;
+    const { id: _, ...data } = req.body;
     
     if (data.currentStock !== undefined) {
         if (data.currentStock === 0) data.status = 'Out of Stock';
@@ -235,7 +261,7 @@ export class InventoryController extends BaseController {
   });
 
   adjustStock = this.handleRequest(async (req: Request) => {
-    const { productId, warehouseId, type, quantity, reason, notes, referenceType, referenceId } = req.body;
+    const { productId, warehouseId, type, quantity, reason, notes, referenceType, referenceId, date } = req.body;
     const userId = (req as any).user?.id || null;
     
     const item = await prisma.inventory.findUnique({ where: { id: productId } });
@@ -243,11 +269,17 @@ export class InventoryController extends BaseController {
 
     const oldQty = item.currentStock;
     let newQty = oldQty;
-    let movementType = type; // IN, OUT, ADJUSTMENT, TRANSFER
+    
+    // IN, OUT, ADJUSTMENT, DAMAGED, RETURNED
+    if (type === 'IN' || type === 'RETURNED') {
+      newQty += Math.abs(quantity);
+    } else if (type === 'OUT' || type === 'DAMAGED') {
+      newQty -= Math.abs(quantity);
+    } else if (type === 'ADJUSTMENT') {
+      newQty = quantity;
+    }
 
-    if (type === 'IN') newQty += quantity;
-    else if (type === 'OUT') newQty -= quantity;
-    else if (type === 'ADJUSTMENT') newQty = quantity;
+    if (newQty < 0) throw new Error('Stock cannot be negative');
 
     let status = 'In Stock';
     if (newQty === 0) status = 'Out of Stock';
@@ -268,7 +300,7 @@ export class InventoryController extends BaseController {
                 oldQty,
                 newQty,
                 difference: newQty - oldQty,
-                reason: reason || 'Manual Adjustment',
+                reason: reason || notes || 'Manual Adjustment',
                 notes,
                 approvedBy: userId
             }
@@ -278,19 +310,47 @@ export class InventoryController extends BaseController {
     await prisma.stockMovement.create({
       data: {
         productId,
-        type: movementType,
-        quantity: type === 'ADJUSTMENT' ? (newQty - oldQty) : quantity,
+        type,
+        quantity: Math.floor(type === 'ADJUSTMENT' ? (newQty - oldQty) : quantity),
+        beforeStock: oldQty,
+        afterStock: newQty,
         warehouseId: warehouseId || item.warehouseId,
         referenceType: referenceType || 'MANUAL',
         referenceId: referenceId,
         notes: notes || reason,
         cost: item.costPrice,
         createdBy: userId,
-        date: new Date()
+        date: (date && date !== "") ? new Date(date) : new Date()
       }
     });
 
     return updatedItem;
+  });
+
+  movementHistory = this.handleRequest(async (req: Request) => {
+    const { productId, type, warehouseId, startDate, endDate, limit } = req.query;
+    
+    const where: any = {};
+    if (productId) where.productId = String(productId);
+    if (type && type !== 'all') where.type = String(type);
+    if (warehouseId && warehouseId !== 'all') where.warehouseId = String(warehouseId);
+    
+    if (startDate || endDate) {
+        where.date = {};
+        if (startDate) where.date.gte = new Date(String(startDate));
+        if (endDate) where.date.lte = new Date(String(endDate));
+    }
+
+    return await prisma.stockMovement.findMany({
+        where,
+        orderBy: { date: 'desc' },
+        take: limit ? parseInt(String(limit)) : 50,
+        include: {
+            product: { select: { name: true, sku: true, unit: true } },
+            warehouse: { select: { name: true } },
+            creator: { select: { firstName: true, lastName: true } }
+        }
+    });
   });
 
   warehouses = this.handleRequest(async () => {
@@ -299,19 +359,50 @@ export class InventoryController extends BaseController {
     });
   });
 
-  categories = this.handleRequest(async () => {
+  categories = this.handleRequest(async (req: Request) => {
+    const { search } = req.query;
+    const where: any = {};
+    if (search) {
+      const searchStr = String(search);
+      where.OR = [
+        { name: { contains: searchStr, mode: 'insensitive' } },
+        { slug: { contains: searchStr, mode: 'insensitive' } },
+        { description: { contains: searchStr, mode: 'insensitive' } },
+      ];
+    }
     return await prisma.inventoryCategory.findMany({
-        include: { _count: { select: { products: true } } }
+        where,
+        include: { _count: { select: { products: true } } },
+        orderBy: { name: 'asc' }
     });
   });
 
   createCategory = this.handleRequest(async (req: Request) => {
-    const data = req.body;
+    const { id, ...data } = req.body;
+    if (!data.slug) {
+      data.slug = data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+    }
     return await prisma.inventoryCategory.create({ data });
+  });
+
+  updateCategory = this.handleRequest(async (req: Request) => {
+    const { id } = req.params;
+    const { id: _, ...data } = req.body;
+    return await prisma.inventoryCategory.update({
+        where: { id },
+        data
+    });
   });
 
   deleteCategory = this.handleRequest(async (req: Request) => {
     const { id } = req.params;
+    // Check if category has products
+    const productsCount = await prisma.inventory.count({
+        where: { categoryId: id }
+    });
+    if (productsCount > 0) {
+        throw new Error('Cannot delete category with linked products');
+    }
     return await prisma.inventoryCategory.delete({ where: { id } });
   });
 }

@@ -147,7 +147,18 @@ export default function BillCreatePage() {
         notes: bill.notes || "",
         terms: bill.terms || "",
       });
-      setItems(Array.isArray(bill.items) ? bill.items : []);
+      setItems(Array.isArray(bill.items) ? bill.items.map((item: any) => ({
+        productId: item.productId || "",
+        productName: item.productName || "",
+        description: item.description || "",
+        quantity: item.quantity || 0,
+        unitPrice: item.unitPrice || 0,
+        taxPercent: item.taxPercent || 0,
+        taxAmount: item.taxAmount || 0,
+        discountPercent: item.discountPercent || 0,
+        discountAmount: item.discountAmount || 0,
+        lineTotal: item.lineTotal || 0
+      })) : []);
     } catch (error) {
       toast.error("Failed to load Bill");
       navigate("/purchase/bills");
@@ -329,7 +340,7 @@ export default function BillCreatePage() {
         toast.success("Bill updated successfully");
       } else {
         const response = await api.post("/purchase/bills", payload);
-        billId = response.data.id;
+        billId = response.data?.id;
         toast.success("Bill created successfully");
       }
 
@@ -343,7 +354,11 @@ export default function BillCreatePage() {
         toast.success("Bill marked as paid");
       }
 
-      navigate(`/purchase/bills/${billId}`);
+      if (billId) {
+        navigate(`/purchase/bills/${billId}`);
+      } else {
+        navigate("/purchase/bills");
+      }
     } catch (error: any) {
       console.error("Submit Bill error:", error);
       toast.error(error.response?.data?.message || "Failed to save Bill");
@@ -411,7 +426,7 @@ export default function BillCreatePage() {
                     <Building2 className="h-3 w-3 text-emerald-500" /> Vendor *
                   </Label>
                   <Select 
-                    value={formData.vendorId} 
+                    value={formData.vendorId || ""} 
                     onValueChange={(val) => {
                       const v = vendors.find(v => v.id === val);
                       setFormData({ ...formData, vendorId: val, vendorName: v?.name || "" });
@@ -433,7 +448,7 @@ export default function BillCreatePage() {
                     <FileSearch className="h-3 w-3 text-blue-500" /> Linked PO (Optional)
                   </Label>
                   <Select 
-                    value={formData.purchaseOrderId} 
+                    value={formData.purchaseOrderId || ""} 
                     onValueChange={fetchPurchaseOrder}
                   >
                     <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-white/5 font-medium italic">
@@ -456,7 +471,7 @@ export default function BillCreatePage() {
                   </Label>
                   <Input 
                     placeholder="e.g. BILL-2023-001"
-                    value={formData.number}
+                    value={formData.number || ""}
                     onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                     className="h-11 rounded-xl border-slate-200 dark:border-white/5 font-medium italic"
                   />
@@ -478,7 +493,7 @@ export default function BillCreatePage() {
                   </Label>
                   <Input 
                     type="date" 
-                    value={formData.dueDate}
+                    value={formData.dueDate || ""}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                     className="h-11 rounded-xl border-slate-200 dark:border-white/5 font-medium italic" 
                   />
@@ -535,7 +550,7 @@ export default function BillCreatePage() {
                            </Select>
                            <Input 
                              placeholder="Line description..." 
-                             value={item.description}
+                             value={item.description || ""}
                              onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                              className="h-8 text-[10px] rounded-lg border-slate-100 dark:border-white/5 italic" 
                            />
@@ -545,7 +560,7 @@ export default function BillCreatePage() {
                              type="number" 
                              min="0"
                              step="1"
-                             value={item.quantity}
+                             value={item.quantity || 0}
                              onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 0)}
                              className="h-10 rounded-lg border-slate-200 dark:border-white/5 text-center font-mono italic" 
                            />
@@ -555,7 +570,7 @@ export default function BillCreatePage() {
                                type="number" 
                                min="0"
                                step="0.01"
-                               value={item.unitPrice}
+                               value={item.unitPrice || 0}
                                onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
                                className="h-10 rounded-lg border-slate-200 dark:border-white/5 text-right font-mono italic" 
                            />
@@ -565,7 +580,7 @@ export default function BillCreatePage() {
                                type="number" 
                                min="0"
                                max="100"
-                               value={item.taxPercent}
+                               value={item.taxPercent || 0}
                                onChange={(e) => handleItemChange(index, 'taxPercent', parseFloat(e.target.value) || 0)}
                                className="h-10 rounded-lg border-slate-200 dark:border-white/5 text-center font-mono italic" 
                             />
@@ -575,7 +590,7 @@ export default function BillCreatePage() {
                                 type="number" 
                                 min="0"
                                 max="100"
-                                value={item.discountPercent}
+                                value={item.discountPercent || 0}
                                 onChange={(e) => handleItemChange(index, 'discountPercent', parseFloat(e.target.value) || 0)}
                                 className="h-10 rounded-lg border-slate-200 dark:border-white/5 text-center font-mono italic text-rose-500" 
                              />
@@ -616,7 +631,7 @@ export default function BillCreatePage() {
                  <Textarea 
                    placeholder="Add internal notes for your team..." 
                    className="min-h-[100px] rounded-xl border-slate-200 dark:border-white/5 italic font-medium"
-                   value={formData.notes}
+                   value={formData.notes || ""}
                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                  />
                </CardContent>
@@ -627,7 +642,7 @@ export default function BillCreatePage() {
                  <Textarea 
                    placeholder="Payment terms, delivery conditions..." 
                    className="min-h-[100px] rounded-xl border-slate-200 dark:border-white/5 italic font-medium"
-                   value={formData.terms}
+                   value={formData.terms || ""}
                    onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
                  />
                </CardContent>

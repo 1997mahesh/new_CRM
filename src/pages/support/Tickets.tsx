@@ -1,27 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { 
   Plus, 
   Search, 
   Filter, 
   Download, 
-  LifeBuoy,
-  Eye,
-  MessageSquare,
-  MoreHorizontal,
-  ChevronRight,
-  FileText,
+  Eye, 
+  MoreHorizontal, 
+  ChevronRight, 
+  Building2, 
+  Columns as ColumnsIcon, 
+  Search as SearchIcon, 
+  Activity,
+  Trash2,
+  CheckCircle2,
+  RefreshCcw,
   Calendar,
-  Building2,
-  Columns,
-  Search as SearchIcon,
-  MessageCircle,
-  UserCheck,
+  ShieldAlert,
+  User,
   Tag,
   Clock,
-  AlertCircle,
-  User,
-  ShieldAlert,
-  Activity
+  ExternalLink,
+  ChevronLeft,
+  Settings2,
+  FileText,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +34,11 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuGroup
 } from "@/components/ui/dropdown-menu";
 import { 
   Select, 
@@ -41,219 +48,608 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "motion/react";
 
-const TICKETS = [
-  { id: "TK-081", subject: "Portal Login Issue", customer: "TechSupplies Ltd", status: "Open", priority: "High", sla: "Overdue", assignee: "John D.", created: "2h ago", category: "Technical" },
-  { id: "TK-074", subject: "Billing Query: Order #204", customer: "CloudWorks Inc", status: "In Progress", priority: "Medium", sla: "2h left", assignee: "Sarah K.", created: "4h ago", category: "Billing" },
-  { id: "TK-092", subject: "API Token Revoked", customer: "Digital Assets Co", status: "Open", priority: "Critical", sla: "10m left", assignee: "-", created: "30m ago", category: "Security" },
-  { id: "TK-065", subject: "Feature Request: Export to CSV", customer: "Global Logistics", status: "Solved", priority: "Low", sla: "Met", assignee: "Mike R.", created: "1d ago", category: "Product" },
-  { id: "TK-088", subject: "Mobile App Crashing", customer: "OfficePro Solutions", status: "Pending", priority: "High", sla: "1h left", assignee: "Sarah K.", created: "3h ago", category: "Technical" },
-  { id: "TK-095", subject: "Invoice Discrepancy", customer: "TechSupplies Ltd", status: "Open", priority: "Medium", sla: "5h left", assignee: "John D.", created: "1h ago", category: "Billing" },
+const COLUMN_CONFIG = [
+  { id: 'ticketNumber', label: 'Ticket ID' },
+  { id: 'subject', label: 'Subject' },
+  { id: 'status', label: 'Status' },
+  { id: 'priority', label: 'Priority' },
+  { id: 'category', label: 'Category' },
+  { id: 'assignedUser', label: 'Assignee' },
+  { id: 'customerName', label: 'Customer' },
+  { id: 'createdAt', label: 'Created Date' },
+  { id: 'slaDueDate', label: 'SLA' },
+  { id: 'actions', label: 'Actions' }
 ];
 
 export default function SupportTicketsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [pagination, setPagination] = useState<any>({});
+  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<any[]>([]);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMN_CONFIG.map(c => c.id));
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
+
+  // Filters from URL
+  const status = searchParams.get("status") || "";
+  const priority = searchParams.get("priority") || "";
+  const department = searchParams.get("department") || "";
+  const category = searchParams.get("category") || "";
+  const assignedUserId = searchParams.get("assignedUserId") || "";
+  const dateRange = searchParams.get("dateRange") || "";
+  const search = searchParams.get("search") || "";
+  const page = Number(searchParams.get("page")) || 1;
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const response = await api.get('/users');
+        if (response.success) setUsers(response.data || []);
+      } catch (err) {}
+    };
+    fetchAgents();
+  }, []);
+
+  const fetchTickets = async () => {
+    setLoading(true);
+    try {
+      const params: any = { page, limit: 10 };
+      if (status) params.status = status;
+      if (priority) params.priority = priority;
+      if (department) params.department = department;
+      if (category) params.category = category;
+      if (assignedUserId) params.assignedUserId = assignedUserId;
+      if (dateRange) params.dateRange = dateRange;
+      if (search) params.search = search;
+      
+      const response = await api.get('/support/tickets', params);
+      if (response.success && response.data) {
+        setTickets(response.data.items || []);
+        setPagination(response.data.pagination || {});
+      }
+    } catch (error) {
+      toast.error("Failed to fetch tickets");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [searchParams]);
+
+  const updateFilter = (key: string, value: string) => {
+    const newParams = new URLSearchParams(searchParams);
+    if (!value || value === "all") {
+      newParams.delete(key);
+    } else {
+      newParams.set(key, value);
+    }
+    newParams.set("page", "1");
+    setSearchParams(newParams);
+  };
+
+  const toggleColumn = (colId: string) => {
+    setVisibleColumns(prev => 
+      prev.includes(colId) ? prev.filter(c => c !== colId) : [...prev, colId]
+    );
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      await api.patch(`/support/tickets/${id}/status`, { status: newStatus });
+      toast.success(`Ticket marked as ${newStatus}`);
+      fetchTickets();
+    } catch (error) {
+      toast.error("Failed to update ticket status");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this ticket?")) return;
+    try {
+      await api.delete(`/support/tickets/${id}`);
+      toast.success("Ticket deleted successfully");
+      fetchTickets();
+    } catch (error) {
+      toast.error("Failed to delete ticket");
+    }
+  };
+
+  const handleAssign = async () => {
+    if (!selectedTicketId || !selectedAgentId) {
+      toast.error("Please select an agent");
+      return;
+    }
+    try {
+      await api.patch(`/support/tickets/${selectedTicketId}/assign`, { assignedUserId: selectedAgentId });
+      toast.success("Ticket assigned successfully");
+      setAssignModalOpen(false);
+      fetchTickets();
+    } catch (error) {
+      toast.error("Failed to assign ticket");
+    }
+  };
+
+  const isVisible = (id: string) => visibleColumns.includes(id);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-12 font-jakarta">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-blue-600" />
+            <div className="h-10 w-10 bg-blue-600/10 rounded-xl flex items-center justify-center">
+              <Activity className="h-6 w-6 text-blue-600" />
+            </div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-800 dark:text-slate-100 italic">Support Tickets</h1>
           </div>
-          <p className="text-slate-500 dark:text-slate-400 text-sm italic italic">Manage incoming requests, track SLAs, and resolve customer issues.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-sm italic ml-12">
+            Manage customer requests, track performance, and resolve tickets.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="dark:bg-[#1f1a1d] dark:border-white/5 dark:text-slate-200 font-bold h-10 px-4 rounded-xl shadow-sm gap-2 italic">
             <Download className="h-4 w-4 text-slate-400" />
             <span>Export</span>
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-xl shadow-premium gap-2 tracking-wide italic">
+          <Button 
+            onClick={() => navigate('/support/tickets/new')}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold h-10 px-4 rounded-xl shadow-premium gap-2 tracking-wide italic"
+          >
             <Plus className="h-4 w-4" />
             <span>New Ticket</span>
           </Button>
         </div>
       </div>
 
-      {/* Filters Section */}
-      <Card className="border-slate-100 dark:border-white/5 bg-white dark:bg-[#1f1a1d] p-4 shadow-soft rounded-2xl">
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-            <div className="xl:col-span-2 relative group">
-               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-               <Input placeholder="Search subject or ticket #..." className="pl-10 h-10 border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 rounded-xl font-medium italic" />
+      {/* Modern Filter Toolbar */}
+      <Card className="border-slate-100 dark:border-white/5 bg-white dark:bg-[#1f1a1d] p-3 shadow-soft rounded-2xl overflow-hidden font-jakarta italic">
+         <div className="flex items-center justify-between gap-3 w-full px-1">
+            <div className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap pb-1 xl:pb-0">
+               {/* Left: Search */}
+               <div className="w-[280px] shrink-0 relative group">
+               <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+               <Input 
+                 placeholder="Search Tickets..." 
+                 value={search}
+                 onChange={(e) => updateFilter("search", e.target.value)}
+                 className="pl-11 h-[42px] border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 rounded-xl font-bold italic text-xs shadow-sm hover:border-blue-400 transition-colors w-full" 
+               />
             </div>
+
+            {/* Middle: Filters Group (now direct children for better alignment) */}
             
-            <Select>
-               <SelectTrigger className="h-10 border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 rounded-xl text-xs font-bold italic">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-3.5 w-3.5 text-slate-400" />
-                    <SelectValue placeholder="Status" />
-                  </div>
-               </SelectTrigger>
-               <SelectContent className="rounded-xl dark:bg-[#1f1a1d] dark:border-white/10 italic">
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="inprogress">In Progress</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="solved">Solved</SelectItem>
-               </SelectContent>
-            </Select>
+            {/* Columns Selector */}
+            <DropdownMenu>
+               <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-[42px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
+                     <ColumnsIcon className="h-3.5 w-3.5 text-blue-600" />
+                     Columns
+                  </Button>
+               </DropdownMenuTrigger>
+               <DropdownMenuContent align="end" className="w-56 rounded-xl italic">
+                  <DropdownMenuGroup>
+                     <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 p-3 italic">Visible Columns</DropdownMenuLabel>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  {COLUMN_CONFIG.map(col => (
+                     <DropdownMenuCheckboxItem
+                       key={col.id}
+                       checked={isVisible(col.id)}
+                       onCheckedChange={() => toggleColumn(col.id)}
+                       className="text-xs font-bold italic"
+                     >
+                       {col.label}
+                     </DropdownMenuCheckboxItem>
+                  ))}
+               </DropdownMenuContent>
+            </DropdownMenu>
 
-            <Select>
-               <SelectTrigger className="h-10 border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 rounded-xl text-xs font-bold italic">
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="h-3.5 w-3.5 text-slate-400" />
-                    <SelectValue placeholder="Priority" />
-                  </div>
-               </SelectTrigger>
-               <SelectContent className="rounded-xl italic">
-                  <SelectItem value="critical">Critical</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-               </SelectContent>
-            </Select>
-
-            <Select>
-               <SelectTrigger className="h-10 border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 rounded-xl text-xs font-bold italic">
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-3.5 w-3.5 text-slate-400" />
-                    <SelectValue placeholder="Category" />
-                  </div>
+            <Select value={status || "all"} onValueChange={(val) => updateFilter("status", val)}>
+               <SelectTrigger className="h-[42px] w-[110px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
+                  <SelectValue placeholder="Status" />
                </SelectTrigger>
                <SelectContent className="rounded-xl italic">
-                  <SelectItem value="tech">Technical</SelectItem>
-                  <SelectItem value="billing">Billing</SelectItem>
-                  <SelectItem value="product">Product</SelectItem>
+                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
+                  <SelectItem value="Open">Open</SelectItem>
+                  <SelectItem value="In Progress">In Progress</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Solved">Solved</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
                </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-2">
-               <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-slate-200 dark:border-white/10 shrink-0">
-                  <Columns className="h-4 w-4 text-slate-400" />
-               </Button>
-               <Button variant="ghost" className="h-10 px-4 text-[10px] font-bold uppercase tracking-widest text-blue-600 hover:bg-blue-50 italic rounded-xl">Reset</Button>
+            <Select value={priority || "all"} onValueChange={(val) => updateFilter("priority", val)}>
+               <SelectTrigger className="h-[42px] w-[110px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
+                  <SelectValue placeholder="Priority" />
+               </SelectTrigger>
+               <SelectContent className="rounded-xl italic">
+                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
+                  <SelectItem value="Critical" className="text-red-600 font-bold italic">Critical</SelectItem>
+                  <SelectItem value="High" className="text-orange-500 font-bold italic">High</SelectItem>
+                  <SelectItem value="Medium" className="text-blue-500 font-bold italic">Medium</SelectItem>
+                  <SelectItem value="Low" className="text-slate-500 font-bold italic">Low</SelectItem>
+               </SelectContent>
+            </Select>
+
+            <Select value={category || "all"} onValueChange={(val) => updateFilter("category", val)}>
+               <SelectTrigger className="h-[42px] w-[125px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
+                  <SelectValue placeholder="Category" />
+               </SelectTrigger>
+               <SelectContent className="rounded-xl italic">
+                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
+                  <SelectItem value="Technical Support">Technical Support</SelectItem>
+                  <SelectItem value="Billing & Finance">Billing & Finance</SelectItem>
+                  <SelectItem value="API Integration">API Integration</SelectItem>
+                  <SelectItem value="Authentication">Authentication</SelectItem>
+                  <SelectItem value="Feature Requests">Feature Requests</SelectItem>
+                  <SelectItem value="Customer Portal">Customer Portal</SelectItem>
+                  <SelectItem value="Security Issues">Security Issues</SelectItem>
+                  <SelectItem value="Server Infrastructure">Server Infrastructure</SelectItem>
+                  <SelectItem value="CRM Automation">CRM Automation</SelectItem>
+               </SelectContent>
+            </Select>
+
+            <Select value={assignedUserId || "all"} onValueChange={(val) => updateFilter("assignedUserId", val)}>
+               <SelectTrigger className="h-[42px] w-[115px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
+                  <SelectValue placeholder="Agent" />
+               </SelectTrigger>
+               <SelectContent className="rounded-xl italic">
+                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
+                  <SelectItem value="unassigned" className="italic text-slate-400 font-bold italic">Unassigned</SelectItem>
+                  {users.map(u => (
+                     <SelectItem key={u.id} value={u.id} className="italic">{u.firstName} {u.lastName}</SelectItem>
+                  ))}
+               </SelectContent>
+            </Select>
+
+            <Select value={dateRange || "all"} onValueChange={(val) => updateFilter("dateRange", val)}>
+               <SelectTrigger className="h-[42px] w-[105px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
+                  <SelectValue placeholder="Date" />
+               </SelectTrigger>
+               <SelectContent className="rounded-xl italic">
+                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="week">Past 7 Days</SelectItem>
+                  <SelectItem value="month">Past 30 Days</SelectItem>
+               </SelectContent>
+            </Select>
+
             </div>
+
+            {/* Right: Refresh Button */}
+            <Button 
+               variant="outline" 
+               onClick={fetchTickets}
+               className="h-[42px] shrink-0 rounded-xl text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10 border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 transition-all text-sm font-medium tracking-normal gap-1.5 flex items-center px-4 shadow-sm ml-auto"
+            >
+               <RefreshCcw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+               <span className="hidden sm:inline">Refresh</span>
+            </Button>
          </div>
       </Card>
 
       {/* Table Section */}
-      <Card className="border-slate-200 dark:border-white/5 bg-white dark:bg-[#211c1f] rounded-2xl shadow-soft dark:shadow-2xl overflow-hidden overflow-x-auto">
-         <table className="w-full text-left min-w-[1000px]">
-           <thead>
-             <tr className="text-[10px] uppercase font-bold tracking-widest text-slate-400 bg-slate-50/50 dark:bg-white/5 border-b border-slate-100 dark:border-white/5 italic">
-                <th className="px-6 py-4">ID</th>
-                <th className="px-6 py-4">Subject & Customer</th>
-                <th className="px-6 py-4 text-center">Status</th>
-                <th className="px-6 py-4 text-center">Priority</th>
-                <th className="px-6 py-4 text-center">SLA Status</th>
-                <th className="px-6 py-4">Assignee</th>
-                <th className="px-6 py-4">Created</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-             </tr>
-           </thead>
-           <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs font-medium italic">
-             {TICKETS.map((tk) => (
-               <tr key={tk.id} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group">
-                 <td className="px-6 py-5">
-                    <span className="font-mono font-bold text-slate-400">{tk.id}</span>
-                 </td>
-                 <td className="px-6 py-5">
-                   <div className="flex flex-col gap-1">
-                      <span className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 transition-colors tracking-tight line-clamp-1">{tk.subject}</span>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                         <Building2 className="h-2.5 w-2.5" /> {tk.customer}
-                         <span className="text-slate-200 dark:text-slate-800">•</span>
-                         <span className="text-indigo-400">{tk.category}</span>
-                      </div>
-                   </div>
-                 </td>
-                 <td className="px-6 py-5 text-center">
-                   <Badge className={cn(
-                     "text-[8px] font-bold uppercase py-0.5 px-2 border-none h-4.5 tracking-widest italic shadow-sm",
-                     tk.status === "Open" ? "bg-blue-50 text-blue-600" : 
-                     tk.status === "In Progress" ? "bg-indigo-50 text-indigo-600" :
-                     tk.status === "Solved" ? "bg-emerald-50 text-emerald-600" :
-                     "bg-slate-100 text-slate-400"
-                   )}>
-                     {tk.status}
-                   </Badge>
-                 </td>
-                 <td className="px-6 py-5 text-center">
-                   <Badge className={cn(
-                     "text-[8px] font-bold uppercase py-0.5 px-2 border-none h-4.5 tracking-widest italic shadow-sm",
-                     tk.priority === "Critical" ? "bg-red-600 text-white" : 
-                     tk.priority === "High" ? "bg-red-50 text-red-500" :
-                     tk.priority === "Medium" ? "bg-blue-50 text-blue-600" :
-                     "bg-slate-100 text-slate-400"
-                   )}>
-                     {tk.priority}
-                   </Badge>
-                 </td>
-                 <td className="px-6 py-5 text-center">
-                    <div className={cn(
-                       "flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-tighter italic decoration-slate-200 underline underline-offset-4",
-                       tk.sla === "Overdue" ? "text-red-500" : 
-                       tk.sla === "Met" ? "text-emerald-500" : "text-amber-500"
-                    )}>
-                       <Clock className="h-3 w-3" />
-                       {tk.sla}
-                    </div>
-                 </td>
-                 <td className="px-6 py-5">
-                   <div className="flex items-center gap-2">
-                     <Avatar className="h-6 w-6 border-2 border-white dark:border-[#211c1f] shadow-sm">
-                        <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${tk.assignee}`} />
-                        <AvatarFallback className="text-[8px]">{tk.assignee.charAt(0)}</AvatarFallback>
-                     </Avatar>
-                     <span className="font-bold text-slate-600 dark:text-slate-300 italic">{tk.assignee}</span>
-                   </div>
-                 </td>
-                 <td className="px-6 py-5 text-slate-400 text-[10px]">{tk.created}</td>
-                 <td className="px-6 py-5 text-right">
-                   <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50">
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:bg-white/10">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <DropdownMenu>
-                         <DropdownMenuTrigger asChild>
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                             <MoreHorizontal className="h-4 w-4" />
-                           </Button>
-                         </DropdownMenuTrigger>
-                         <DropdownMenuContent align="end" className="w-44 rounded-xl dark:bg-[#1f1a1d] dark:border-white/10 italic">
-                           <DropdownMenuItem className="text-xs font-bold gap-2 focus:bg-blue-50 dark:focus:bg-blue-600/10">
-                             <UserCheck className="h-3.5 w-3.5" /> Assign to Me
-                           </DropdownMenuItem>
-                           <DropdownMenuItem className="text-xs font-bold gap-2">
-                             <Tag className="h-3.5 w-3.5" /> Change Category
-                           </DropdownMenuItem>
-                           <DropdownMenuItem className="text-xs font-bold gap-2 text-red-500 hover:bg-red-50">
-                             <AlertCircle className="h-3.5 w-3.5" /> Close Ticket
-                           </DropdownMenuItem>
-                         </DropdownMenuContent>
-                      </DropdownMenu>
-                   </div>
-                 </td>
+      <Card className="border-slate-200 dark:border-white/5 bg-white dark:bg-[#211c1f] rounded-2xl shadow-soft dark:shadow-2xl overflow-hidden relative">
+         <div className="overflow-x-auto min-h-[400px]">
+            <table className="w-full text-left min-w-[1200px]">
+               <thead className="sticky top-0 z-10">
+               <tr className="text-[10px] uppercase font-black tracking-widest text-slate-400 bg-slate-50/80 dark:bg-[#211c1f]/80 backdrop-blur-md border-b border-slate-100 dark:border-white/5 italic">
+                  {isVisible('ticketNumber') && <th className="px-6 py-5">Ticket ID</th>}
+                  {isVisible('subject') && <th className="px-6 py-5">Subject</th>}
+                  {isVisible('status') && <th className="px-6 py-5 text-center">Status</th>}
+                  {isVisible('priority') && <th className="px-6 py-5 text-center">Priority</th>}
+                  {isVisible('category') && <th className="px-6 py-5">Category</th>}
+                  {isVisible('assignedUser') && <th className="px-6 py-5">Assignee</th>}
+                  {isVisible('customerName') && <th className="px-6 py-5">Customer</th>}
+                  {isVisible('createdAt') && <th className="px-6 py-5">Created Date</th>}
+                  {isVisible('slaDueDate') && <th className="px-6 py-5">SLA</th>}
+                  {isVisible('actions') && <th className="px-6 py-5 text-right">Actions</th>}
                </tr>
-             ))}
-           </tbody>
-         </table>
+               </thead>
+               <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs font-medium italic">
+               <AnimatePresence>
+               {tickets.length > 0 ? (
+                 tickets.map((tk) => (
+                  <motion.tr 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    key={tk.id} 
+                    className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors group relative border-l-4 border-l-transparent hover:border-l-blue-500"
+                  >
+                     {isVisible('ticketNumber') && (
+                        <td className="px-6 py-5">
+                           <span className="font-mono font-black text-slate-400 text-[10px] uppercase bg-slate-100 dark:bg-white/5 px-2 py-1 rounded-md">
+                              {tk.ticketNumber || `#${tk.id.slice(0, 8)}`}
+                           </span>
+                        </td>
+                     )}
+                     {isVisible('subject') && (
+                        <td className="px-6 py-5 max-w-[250px]">
+                           <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-2">
+                                 <span className="text-sm font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 transition-colors tracking-tight line-clamp-1 leading-none">{tk.subject}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-400 truncate opacity-0 group-hover:opacity-100 transition-opacity">
+                                 {tk.description.slice(0, 60)}...
+                              </span>
+                           </div>
+                        </td>
+                     )}
+                     {isVisible('status') && (
+                        <td className="px-6 py-5 text-center">
+                           <Badge className={cn(
+                              "text-[8px] font-black uppercase py-0.5 px-2 border-none h-5 tracking-widest italic shadow-sm",
+                              tk.status === "Open" ? "bg-blue-50 text-blue-600 dark:bg-blue-600/10" : 
+                              tk.status === "In Progress" ? "bg-purple-50 text-purple-600 dark:bg-purple-600/10" :
+                              tk.status === "Pending" ? "bg-orange-50 text-orange-600 dark:bg-orange-600/10" :
+                              tk.status === "Resolved" || tk.status === "Solved" ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-600/10" :
+                              tk.status === "Closed" ? "bg-slate-100 text-slate-500 dark:bg-white/10" :
+                              tk.status === "Overdue" ? "bg-red-50 text-red-600 dark:bg-red-600/10" :
+                              "bg-slate-100 text-slate-400"
+                           )}>
+                              {tk.status}
+                           </Badge>
+                        </td>
+                     )}
+                     {isVisible('priority') && (
+                        <td className="px-6 py-5 text-center">
+                           <Badge variant="outline" className={cn(
+                              "text-[8px] font-black uppercase py-0.5 px-2 h-5 tracking-widest italic border-2",
+                              tk.priority === "Critical" ? "border-red-500 text-red-600 bg-red-50 dark:bg-red-600/10" : 
+                              tk.priority === "High" ? "border-orange-500 text-orange-600 bg-orange-50 dark:bg-orange-600/10" :
+                              tk.priority === "Medium" ? "border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-600/10" :
+                              "border-slate-200 text-slate-400 bg-slate-50 dark:bg-white/5 dark:border-white/10"
+                           )}>
+                              {tk.priority}
+                           </Badge>
+                        </td>
+                     )}
+                     {isVisible('category') && (
+                        <td className="px-6 py-5">
+                           <div className="flex items-center gap-2">
+                              <Tag className="h-3 w-3 text-indigo-400" />
+                              <span className="font-bold text-slate-500 dark:text-slate-400 uppercase text-[9px] tracking-wider italic">{tk.category || tk.department}</span>
+                           </div>
+                        </td>
+                     )}
+                     {isVisible('assignedUser') && (
+                        <td className="px-6 py-5">
+                           <div className="flex items-center gap-2">
+                              <Avatar className="h-7 w-7 border-2 border-white dark:border-[#211c1f] shadow-sm">
+                                 <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${tk.assignedUser?.firstName || 'unassigned'}`} />
+                                 <AvatarFallback className="text-[10px] font-black">{tk.assignedUser?.firstName?.charAt(0) || "?"}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                 <span className="font-bold text-slate-700 dark:text-slate-300 italic leading-none">{tk.assignedUser ? `${tk.assignedUser.firstName} ${tk.assignedUser.lastName}` : "Unassigned"}</span>
+                                 <span className="text-[9px] text-slate-400 uppercase tracking-tighter">Support Agent</span>
+                              </div>
+                           </div>
+                        </td>
+                     )}
+                     {isVisible('customerName') && (
+                        <td className="px-6 py-5">
+                           <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                              <Building2 className="h-3.5 w-3.5 text-slate-400" />
+                              <span className="font-bold italic">{tk.customerName || "Walk-In Customer"}</span>
+                           </div>
+                        </td>
+                     )}
+                     {isVisible('createdAt') && (
+                        <td className="px-6 py-5">
+                           <div className="flex flex-col">
+                              <span className="text-slate-500 dark:text-slate-400 font-bold">{new Date(tk.createdAt).toLocaleDateString()}</span>
+                              <span className="text-[9px] text-slate-400 uppercase tracking-widest">{new Date(tk.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                           </div>
+                        </td>
+                     )}
+                     {isVisible('slaDueDate') && (
+                        <td className="px-6 py-5">
+                           {tk.slaDueDate ? (
+                              <div className={cn(
+                                "flex items-center gap-2 px-2 py-1 rounded-lg border",
+                                new Date(tk.slaDueDate) < new Date() ? "bg-red-50 border-red-100 text-red-600 dark:bg-red-600/10 dark:border-red-900/20" : "bg-slate-50 border-slate-100 text-slate-600 dark:bg-white/5 dark:border-white/10 dark:text-slate-400"
+                              )}>
+                                 <Clock className="h-3 w-3" />
+                                 <span className="font-black text-[9px] tracking-tight">{new Date(tk.slaDueDate).toLocaleDateString()}</span>
+                              </div>
+                           ) : (
+                              <span className="text-slate-300 dark:text-slate-700 italic">-- No SLA --</span>
+                           )}
+                        </td>
+                     )}
+                     {isVisible('actions') && (
+                        <td className="px-6 py-5 text-right">
+                           <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => navigate(`/support/tickets/${tk.id}`)} className="h-9 w-9 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10 rounded-xl transition-all hover:scale-110 active:scale-95 shadow-sm bg-white dark:bg-white/5 border border-slate-100 dark:border-white/10">
+                                 <Eye className="h-4 w-4" />
+                              </Button>
+                              <DropdownMenu>
+                                 <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 rounded-xl transition-all border border-transparent hover:border-slate-100">
+                                       <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                 </DropdownMenuTrigger>
+                                 <DropdownMenuContent align="end" className="w-56 rounded-xl dark:bg-[#1f1a1d] dark:border-white/10 italic p-2">
+                                    <DropdownMenuGroup>
+                                       <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-3 py-2 italic border-b border-slate-50 dark:border-white/5 mb-1">Ticket Actions</DropdownMenuLabel>
+                                    </DropdownMenuGroup>
+                                    <DropdownMenuItem onClick={() => navigate(`/support/tickets/${tk.id}`)} className="text-xs font-bold gap-3 rounded-lg py-2.5">
+                                       <Eye className="h-4 w-4 text-blue-500" /> View Detailed Case
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => {
+                                       setSelectedTicketId(tk.id);
+                                       setSelectedAgentId(tk.assignedUserId || "");
+                                       setAssignModalOpen(true);
+                                    }} className="text-xs font-bold gap-3 rounded-lg py-2.5">
+                                       <User className="h-4 w-4 text-indigo-500" /> Assign To Expert
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => navigate(`/support/tickets/${tk.id}/edit`)} className="text-xs font-bold gap-3 rounded-lg py-2.5">
+                                       <Settings2 className="h-4 w-4 text-slate-400" /> Edit Ticket
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(tk.id, "Solved")} className="text-xs font-bold gap-3 rounded-lg py-2.5 focus:bg-emerald-50 dark:focus:bg-emerald-600/10">
+                                       <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Mark Solved
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator className="my-1 bg-slate-50 dark:bg-white/5" />
+                                    <DropdownMenuItem onClick={() => handleDelete(tk.id)} className="text-xs font-bold gap-3 rounded-lg py-2.5 text-red-500 focus:bg-red-50 dark:focus:bg-red-600/10">
+                                       <Trash2 className="h-4 w-4" /> Delete Ticket
+                                    </DropdownMenuItem>
+                                 </DropdownMenuContent>
+                              </DropdownMenu>
+                           </div>
+                        </td>
+                     )}
+                  </motion.tr>
+                 ))
+               ) : (
+                  <tr>
+                     <td colSpan={visibleColumns.length} className="px-6 py-24 text-center">
+                        {loading ? (
+                          <div className="flex flex-col items-center gap-3">
+                             <RefreshCcw className="h-8 w-8 text-blue-600 animate-spin" />
+                             <p className="text-sm font-bold text-slate-400 italic">Syncing with Intelligence Cloud...</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center gap-4">
+                             <div className="h-16 w-16 bg-slate-100 dark:bg-white/5 rounded-full flex items-center justify-center">
+                                <FileText className="h-8 w-8 text-slate-300" />
+                             </div>
+                             <div>
+                                <p className="text-lg font-bold text-slate-800 dark:text-slate-100 italic">📭 No tickets found</p>
+                                <p className="text-sm text-slate-500 italic mt-1">Try adjusting your filters or search query.</p>
+                             </div>
+                             <Button 
+                                onClick={() => navigate('/support/tickets/new')}
+                                className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-8 h-10 font-bold italic shadow-premium gap-2 transform transition-all hover:scale-105"
+                             >
+                                <Plus className="h-4 w-4" />
+                                Create First Ticket
+                             </Button>
+                          </div>
+                        )}
+                     </td>
+                  </tr>
+               )}
+               </AnimatePresence>
+               </tbody>
+            </table>
+         </div>
 
          {/* Pagination Footer */}
          <div className="bg-slate-50/50 dark:bg-white/5 px-6 py-4 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic decoration-blue-500/10 underline underline-offset-4 font-mono">Showing 1-10 of 42 TICKETS In Queue</span>
-            <div className="flex gap-1">
-               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-400 disabled:opacity-30"><ChevronRight className="h-4 w-4 rotate-180" /></Button>
-               <Button variant="ghost" className="h-8 min-w-[32px] rounded-xl font-bold text-[10px] bg-blue-600 text-white shadow-premium">1</Button>
-               <Button variant="ghost" className="h-8 min-w-[32px] rounded-xl font-bold text-[10px] text-slate-500 hover:bg-slate-100 italic">2</Button>
-               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-slate-400"><ChevronRight className="h-4 w-4" /></Button>
+            <div className="flex items-center gap-3">
+               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic font-mono bg-white dark:bg-white/5 px-3 py-1.5 rounded-lg border border-slate-200/50 dark:border-white/5 shadow-sm">
+                  TOTAL: {pagination.total || 0} TICKETS In System
+               </span>
+               <Select value={String(pagination.limit || 10)} onValueChange={(val) => updateFilter("limit", val)}>
+                  <SelectTrigger className="h-8 w-[100px] rounded-lg border-slate-200 dark:border-white/5 text-[9px] font-black uppercase italic bg-white dark:bg-white/5">
+                     <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="italic rounded-xl">
+                     <SelectItem value="10">10 Rows</SelectItem>
+                     <SelectItem value="25">25 Rows</SelectItem>
+                     <SelectItem value="50">50 Rows</SelectItem>
+                  </SelectContent>
+               </Select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+               <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page === 1}
+                  onClick={() => updateFilter("page", String(page - 1))}
+                  className="h-9 px-3 rounded-xl border-slate-200 dark:border-white/10 dark:bg-white/5 font-black text-[10px] uppercase italic gap-2 transition-all hover:border-blue-500"
+               >
+                  <ChevronLeft className="h-4 w-4" />
+                  PREVIOUS
+               </Button>
+               
+               <div className="flex items-center gap-1 px-2">
+                  {Array.from({ length: Math.min(pagination.pages || 1, 5) }, (_, i) => {
+                    const p = i + 1;
+                    return (
+                      <Button 
+                        key={p}
+                        variant="ghost" 
+                        onClick={() => updateFilter("page", String(p))}
+                        className={cn(
+                          "h-9 w-9 rounded-xl font-black text-[10px] transition-all",
+                          p === page ? "bg-blue-600 text-white shadow-premium scale-110" : "text-slate-500 hover:bg-white dark:hover:bg-white/5 hover:border-slate-100 dark:hover:border-white/10 italic"
+                        )}
+                      >{p}</Button>
+                    );
+                  })}
+                  {(pagination.pages || 1) > 5 && <span className="text-slate-400 italic font-bold">...</span>}
+               </div>
+
+               <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page === (pagination.pages || 1)}
+                  onClick={() => updateFilter("page", String(page + 1))}
+                  className="h-9 px-3 rounded-xl border-slate-200 dark:border-white/10 dark:bg-white/5 font-black text-[10px] uppercase italic gap-2 transition-all hover:border-blue-500"
+               >
+                  NEXT
+                  <ChevronRight className="h-4 w-4" />
+               </Button>
             </div>
          </div>
       </Card>
-    </div>
+
+      <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
+        <DialogContent className="rounded-2xl dark:bg-[#1f1a1d] dark:border-white/10 font-jakarta italic">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold tracking-tight text-slate-800 dark:text-slate-50 italic">Assign Support Expert</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+             <div className="space-y-2">
+               <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest italic ml-1">Select Support Agent</Label>
+               <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                 <SelectTrigger className="rounded-xl h-12 italic font-bold border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
+                   <SelectValue placeholder="Select an agent..." />
+                 </SelectTrigger>
+                 <SelectContent className="rounded-xl italic">
+                   {users.map((agent) => (
+                     <SelectItem key={agent.id} value={agent.id} className="italic font-medium">
+                        <div className="flex items-center gap-2">
+                           <Avatar className="h-6 w-6">
+                             <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${agent.firstName}`} />
+                             <AvatarFallback className="text-[8px] font-black">{agent.firstName?.charAt(0)}</AvatarFallback>
+                           </Avatar>
+                           {agent.firstName} {agent.lastName}
+                        </div>
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+             </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAssignModalOpen(false)} className="rounded-xl font-bold italic h-11 border-slate-200">Cancel</Button>
+            <Button onClick={handleAssign} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold italic h-11 shadow-premium">Save Assignment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+   </div>
   );
 }

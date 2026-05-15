@@ -57,7 +57,7 @@ export class LedgerController extends BaseController {
 
     return await prisma.ledgerEntry.create({
       data: {
-        date: date ? new Date(date) : new Date(),
+        date: (date && date !== "") ? new Date(date) : new Date(),
         description,
         type,
         debit,

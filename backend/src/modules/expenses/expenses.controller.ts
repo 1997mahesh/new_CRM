@@ -50,7 +50,7 @@ export class ExpenseController extends BaseController {
     return await prisma.expense.create({
       data: {
         amount: parseFloat(amount),
-        date: new Date(date),
+        date: (date && date !== "") ? new Date(date) : new Date(),
         description,
         categoryId,
         status: status || 'draft',
@@ -68,7 +68,7 @@ export class ExpenseController extends BaseController {
       where: { id: req.params.id },
       data: {
         amount: amount ? parseFloat(amount) : undefined,
-        date: date ? new Date(date) : undefined,
+        date: (date && date !== "") ? new Date(date) : undefined,
         description,
         categoryId,
         status,

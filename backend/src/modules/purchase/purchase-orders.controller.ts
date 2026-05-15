@@ -3,6 +3,7 @@ import { BaseController } from '../../controllers/base.controller.js';
 import prisma from '../../prisma/index.js';
 import { auditLog } from '../../utils/audit.js';
 import { getAndIncrementNextNumber } from '../../utils/number-series.js';
+import { calculateTotals, calculateLineTotal } from '../../utils/calculations.js';
 
 export class PurchaseOrderController extends BaseController {
   getAllPOs = this.handleRequest(async (req: Request) => {
@@ -60,7 +61,7 @@ export class PurchaseOrderController extends BaseController {
   });
 
   createPO = this.handleRequest(async (req: Request) => {
-    const data = req.body;
+    const { id: _, ...data } = req.body;
     const userId = (req as any).user?.id || null;
 
     // Generate PO number if not provided
@@ -70,23 +71,43 @@ export class PurchaseOrderController extends BaseController {
 
     const { items, ...poData } = data;
 
+    // Recalculate totals for safety
+    const computed = calculateTotals(items || [], poData.discountType, poData.discountValue);
+    poData.subtotal = computed.subtotal;
+    poData.taxAmount = computed.taxAmount;
+    poData.discountAmount = computed.discountAmount;
+    poData.totalAmount = computed.totalAmount;
+
+    // Sanitize dates
+    if (poData.issueDate === "" || !poData.issueDate) poData.issueDate = new Date();
+    else poData.issueDate = new Date(poData.issueDate);
+
+    if (poData.expectedDelivery === "" || !poData.expectedDelivery) delete poData.expectedDelivery;
+    else poData.expectedDelivery = new Date(poData.expectedDelivery);
+
+    if (poData.deliveryDate === "" || !poData.deliveryDate) delete poData.deliveryDate;
+    else poData.deliveryDate = new Date(poData.deliveryDate);
+
     const po = await prisma.purchaseOrder.create({
       data: {
         ...poData,
         items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            productName: item.productName,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            taxPercent: item.taxPercent,
-            taxAmount: item.taxAmount,
-            discountType: item.discountType,
-            discountValue: item.discountValue,
-            discountAmount: item.discountAmount,
-            totalAmount: item.totalAmount
-          }))
+          create: items.map((item: any) => {
+            const line = calculateLineTotal(item);
+            return {
+              productId: item.productId,
+              productName: item.productName,
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              taxPercent: item.taxPercent,
+              taxAmount: line.taxAmount,
+              discountType: item.discountType || 'Fixed',
+              discountValue: item.discountValue || 0,
+              discountAmount: line.discountAmount,
+              totalAmount: line.lineTotal
+            };
+          })
         }
       },
       include: {
@@ -101,10 +122,29 @@ export class PurchaseOrderController extends BaseController {
 
   updatePO = this.handleRequest(async (req: Request) => {
     const { id } = req.params;
-    const data = req.body;
+    const { id: _, ...data } = req.body;
     const userId = (req as any).user?.id || null;
 
     const { items, ...poData } = data;
+
+    // Recalculate totals if items or discount info changed
+    if (items) {
+      const computed = calculateTotals(items, poData.discountType, poData.discountValue);
+      poData.subtotal = computed.subtotal;
+      poData.taxAmount = computed.taxAmount;
+      poData.discountAmount = computed.discountAmount;
+      poData.totalAmount = computed.totalAmount;
+    }
+
+    // Sanitize dates
+    if (poData.issueDate === "") delete poData.issueDate;
+    else if (poData.issueDate) poData.issueDate = new Date(poData.issueDate);
+
+    if (poData.expectedDelivery === "") poData.expectedDelivery = null;
+    else if (poData.expectedDelivery) poData.expectedDelivery = new Date(poData.expectedDelivery);
+
+    if (poData.deliveryDate === "") poData.deliveryDate = null;
+    else if (poData.deliveryDate) poData.deliveryDate = new Date(poData.deliveryDate);
 
     // Standard update logic would involve deleting old items and creating new ones or updating existing ones
     // For simplicity, we'll delete and recreate if items are provided
@@ -113,19 +153,22 @@ export class PurchaseOrderController extends BaseController {
     if (items) {
       updateData.items = {
         deleteMany: {},
-        create: items.map((item: any) => ({
-          productId: item.productId,
-          productName: item.productName,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          taxPercent: item.taxPercent,
-          taxAmount: item.taxAmount,
-          discountType: item.discountType,
-          discountValue: item.discountValue,
-          discountAmount: item.discountAmount,
-          totalAmount: item.totalAmount
-        }))
+        create: items.map((item: any) => {
+          const line = calculateLineTotal(item);
+          return {
+            productId: item.productId,
+            productName: item.productName,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            taxPercent: item.taxPercent,
+            taxAmount: line.taxAmount,
+            discountType: item.discountType || 'Fixed',
+            discountValue: item.discountValue || 0,
+            discountAmount: line.discountAmount,
+            totalAmount: line.lineTotal
+          };
+        })
       };
     }
 
@@ -174,7 +217,7 @@ export class PurchaseOrderController extends BaseController {
         number: receiptNumber,
         purchaseOrderId: id,
         vendorId: po.vendorId,
-        date: date ? new Date(date) : new Date(),
+        date: (date && date !== "") ? new Date(date) : new Date(),
         receivedBy,
         notes,
         items: {

@@ -175,7 +175,7 @@ export class PaymentsController extends BaseController {
           customerId: invoice.customerId,
           customerName: invoice.customerName,
           amount: paymentAmount,
-          date: date ? new Date(date) : new Date(),
+          date: (date && date !== "") ? new Date(date) : new Date(),
           method,
           status: status || 'Success',
           note,
@@ -225,7 +225,7 @@ export class PaymentsController extends BaseController {
         data: {
           status: 'Refunded',
           refundAmount,
-          refundDate: date ? new Date(date) : new Date(),
+          refundDate: (date && date !== "") ? new Date(date) : new Date(),
           refundReason: reason
         }
       });

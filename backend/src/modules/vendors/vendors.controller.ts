@@ -58,7 +58,7 @@ export class VendorsController extends BaseController {
   });
 
   create = this.handleRequest(async (req: Request) => {
-    const data = req.body;
+    const { id, ...data } = req.body;
     const vendor = await prisma.vendor.create({
       data
     });
@@ -77,7 +77,7 @@ export class VendorsController extends BaseController {
 
   update = this.handleRequest(async (req: Request) => {
     const { id } = req.params;
-    const data = req.body;
+    const { id: _, ...data } = req.body;
     const vendor = await prisma.vendor.update({
       where: { id },
       data

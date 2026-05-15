@@ -31,6 +31,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { 
+  calculateLineTotal, 
+  calculateProcurementTotals, 
+  formatCurrency 
+} from "@/lib/procurement-calculations";
 
 interface POItem {
   id?: string;
@@ -131,7 +136,19 @@ export default function PurchaseOrderCreatePage() {
         discountType: po.discountType || "Fixed",
         discountValue: po.discountValue || 0,
       });
-      setItems(Array.isArray(po.items) ? po.items : []);
+      setItems(Array.isArray(po.items) ? po.items.map((item: any) => ({
+        productId: item.productId || "",
+        productName: item.productName || "",
+        description: item.description || "",
+        quantity: item.quantity || 1,
+        unitPrice: item.unitPrice || 0,
+        taxPercent: item.taxPercent || 0,
+        taxAmount: item.taxAmount || 0,
+        discountType: item.discountType || 'Fixed',
+        discountValue: item.discountValue || 0,
+        discountAmount: item.discountAmount || 0,
+        totalAmount: item.totalAmount || 0
+      })) : []);
     } catch (error) {
       toast.error("Failed to load Purchase Order");
       navigate("/purchase/orders");
@@ -141,50 +158,27 @@ export default function PurchaseOrderCreatePage() {
   };
 
   const calculateTotals = () => {
-    let subtotal = 0;
-    let totalTax = 0;
-    let totalDiscount = 0;
-
     const updatedItems = items.map(item => {
-      // Line item discovery/discount calculation
-      let itemDiscount = 0;
-      if (item.discountType === 'Percentage') {
-        itemDiscount = (item.unitPrice * item.quantity * item.discountValue) / 100;
-      } else {
-        itemDiscount = item.discountValue;
-      }
-
-      const itemSubtotal = (item.unitPrice * item.quantity) - itemDiscount;
-      const itemTax = (itemSubtotal * item.taxPercent) / 100;
-      const itemTotal = itemSubtotal + itemTax;
-
-      subtotal += item.unitPrice * item.quantity;
-      totalTax += itemTax;
-      totalDiscount += itemDiscount;
-
+      const result = calculateLineTotal(item);
       return {
         ...item,
-        discountAmount: itemDiscount,
-        taxAmount: itemTax,
-        totalAmount: itemTotal
+        discountAmount: result.discountAmount,
+        taxAmount: result.taxAmount,
+        totalAmount: result.lineTotal
       };
     });
 
-    // Global discount
-    let globalDiscount = 0;
-    if (formData.discountType === 'Percentage') {
-      globalDiscount = (subtotal * formData.discountValue) / 100;
-    } else {
-      globalDiscount = formData.discountValue;
-    }
-
-    const grandTotal = subtotal + totalTax - totalDiscount - globalDiscount;
+    const summary = calculateProcurementTotals(
+      items,
+      formData.discountType,
+      formData.discountValue
+    );
 
     setTotals({
-      subtotal,
-      discount: totalDiscount + globalDiscount,
-      tax: totalTax,
-      grandTotal: Math.max(0, grandTotal)
+      subtotal: summary.subtotal,
+      discount: summary.discountAmount,
+      tax: summary.taxAmount,
+      grandTotal: summary.totalAmount
     });
   };
 
@@ -258,7 +252,11 @@ export default function PurchaseOrderCreatePage() {
       } else {
         const response = await api.post("/purchase/orders", payload);
         toast.success("Purchase Order created");
-        navigate(`/purchase/orders/${response.data.id}`);
+        if (response.data && response.data.id) {
+          navigate(`/purchase/orders/${response.data.id}`);
+        } else {
+          navigate("/purchase/orders");
+        }
         return;
       }
       navigate("/purchase/orders");
@@ -324,7 +322,7 @@ export default function PurchaseOrderCreatePage() {
                     <Building2 className="h-3 w-3" /> Vendor *
                   </Label>
                   <Select 
-                    value={formData.vendorId} 
+                    value={formData.vendorId || ""} 
                     onValueChange={(val) => {
                       const v = vendors.find(v => v.id === val);
                       setFormData({ ...formData, vendorId: val, vendorName: v?.name || "" });
@@ -347,7 +345,7 @@ export default function PurchaseOrderCreatePage() {
                   </Label>
                   <Input 
                     type="date" 
-                    value={formData.expectedDelivery}
+                    value={formData.expectedDelivery || ""}
                     onChange={(e) => setFormData({ ...formData, expectedDelivery: e.target.value })}
                     className="h-11 rounded-xl border-slate-200" 
                   />
@@ -361,7 +359,7 @@ export default function PurchaseOrderCreatePage() {
                   </Label>
                   <Input 
                     type="date" 
-                    value={formData.issueDate}
+                    value={formData.issueDate || ""}
                     onChange={(e) => setFormData({ ...formData, issueDate: e.target.value })}
                     className="h-11 rounded-xl border-slate-200" 
                   />
@@ -371,7 +369,7 @@ export default function PurchaseOrderCreatePage() {
                     <DollarSign className="h-3 w-3" /> Currency
                   </Label>
                   <Select 
-                    value={formData.currency} 
+                    value={formData.currency || ""} 
                     onValueChange={(val) => setFormData({ ...formData, currency: val })}
                   >
                     <SelectTrigger className="h-11 rounded-xl border-slate-200">
@@ -436,7 +434,7 @@ export default function PurchaseOrderCreatePage() {
                            </Select>
                            <Input 
                              placeholder="Line description..." 
-                             value={item.description}
+                             value={item.description || ""}
                              onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                              className="h-8 text-[10px] rounded-lg border-slate-100" 
                            />
@@ -445,7 +443,7 @@ export default function PurchaseOrderCreatePage() {
                            <Input 
                              type="number" 
                              min="1"
-                             value={item.quantity}
+                             value={item.quantity || 0}
                              onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value))}
                              className="h-10 rounded-lg border-slate-200 text-center" 
                            />
@@ -453,7 +451,7 @@ export default function PurchaseOrderCreatePage() {
                          <td className="px-4 py-4">
                            <Input 
                               type="number" 
-                              value={item.unitPrice}
+                              value={item.unitPrice || 0}
                               onChange={(e) => handleItemChange(index, 'unitPrice', parseFloat(e.target.value))}
                               className="h-10 rounded-lg border-slate-200 text-right font-mono" 
                            />
@@ -461,7 +459,7 @@ export default function PurchaseOrderCreatePage() {
                          <td className="px-4 py-4">
                             <Input 
                                type="number" 
-                               value={item.taxPercent}
+                               value={item.taxPercent || 0}
                                onChange={(e) => handleItemChange(index, 'taxPercent', parseFloat(e.target.value))}
                                className="h-10 rounded-lg border-slate-200 text-center" 
                             />
@@ -469,10 +467,10 @@ export default function PurchaseOrderCreatePage() {
                          <td className="px-4 py-4 text-right">
                             <div className="flex flex-col items-end pt-2">
                               <span className="font-bold text-slate-800 font-mono">
-                                {item.totalAmount.toLocaleString('en-US', { style: 'currency', currency: formData.currency })}
+                                {formatCurrency(calculateLineTotal(item).lineTotal, formData.currency)}
                               </span>
                               {item.discountAmount > 0 && (
-                                <span className="text-[10px] text-rose-500 font-medium">-{item.discountAmount.toFixed(2)} Disc</span>
+                                <span className="text-[10px] text-rose-500 font-medium">-{formatCurrency(calculateLineTotal(item).discountAmount, formData.currency)} Disc</span>
                               )}
                             </div>
                          </td>
@@ -502,7 +500,7 @@ export default function PurchaseOrderCreatePage() {
                  <Textarea 
                    placeholder="Add internal notes or messages for the supplier..." 
                    className="min-h-[100px] rounded-xl border-slate-200"
-                   value={formData.notes}
+                   value={formData.notes || ""}
                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                  />
                </CardContent>
@@ -513,7 +511,7 @@ export default function PurchaseOrderCreatePage() {
                  <Textarea 
                    placeholder="Delivery terms, payment instructions, etc..." 
                    className="min-h-[100px] rounded-xl border-slate-200"
-                   value={formData.terms}
+                   value={formData.terms || ""}
                    onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
                  />
                </CardContent>
@@ -534,7 +532,7 @@ export default function PurchaseOrderCreatePage() {
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-slate-500 font-medium italic">Sub Total</span>
                    <span className="font-bold text-slate-700 font-mono italic decoration-indigo-500/20 underline underline-offset-4">
-                     {totals.subtotal.toLocaleString('en-US', { style: 'currency', currency: formData.currency })}
+                     {formatCurrency(totals.subtotal, formData.currency)}
                    </span>
                  </div>
                  
@@ -556,12 +554,12 @@ export default function PurchaseOrderCreatePage() {
                        </Select>
                      </div>
                      <span className="font-bold text-rose-500 font-mono italic">
-                       -{totals.discount.toLocaleString('en-US', { style: 'currency', currency: formData.currency })}
+                       -{formatCurrency(totals.discount, formData.currency)}
                      </span>
                    </div>
                    <Input 
                       type="number" 
-                      value={formData.discountValue}
+                      value={formData.discountValue || 0}
                       onChange={(e) => setFormData({ ...formData, discountValue: parseFloat(e.target.value) || 0 })}
                       placeholder="Discount value" 
                       className="h-8 text-xs rounded-lg border-slate-100" 
@@ -571,7 +569,7 @@ export default function PurchaseOrderCreatePage() {
                  <div className="flex justify-between items-center text-sm">
                    <span className="text-slate-500 font-medium italic">Tax Total</span>
                    <span className="font-bold text-slate-700 font-mono italic underline underline-offset-4 decoration-indigo-500/10">
-                     {totals.tax.toLocaleString('en-US', { style: 'currency', currency: formData.currency })}
+                     {formatCurrency(totals.tax, formData.currency)}
                    </span>
                  </div>
 
@@ -580,7 +578,7 @@ export default function PurchaseOrderCreatePage() {
                  <div className="flex justify-between items-center pt-2">
                    <span className="text-base font-bold text-slate-800">Grand Total</span>
                    <span className="text-2xl font-black text-indigo-600 font-mono tracking-tighter">
-                     {totals.grandTotal.toLocaleString('en-US', { style: 'currency', currency: formData.currency })}
+                     {formatCurrency(totals.grandTotal, formData.currency)}
                    </span>
                  </div>
                </div>

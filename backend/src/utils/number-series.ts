@@ -10,7 +10,8 @@ export const getAndIncrementNextNumber = async (key: string, transactionClient?:
       'rcp': { prefix: 'RCP-', padding: 5 },
       'invoice': { prefix: 'INV-', padding: 5 },
       'quotation': { prefix: 'QTN-', padding: 5 },
-      'order': { prefix: 'ORD-', padding: 5 }
+      'order': { prefix: 'ORD-', padding: 5 },
+      'ticket': { prefix: 'TKT-2026-', padding: 4 }
     };
     
     const config = defaults[searchKey] || { prefix: `${searchKey.toUpperCase()}-`, padding: 4 };

@@ -172,6 +172,16 @@ export class BillsController extends BaseController {
       billData.number = await getAndIncrementNextNumber('bill');
     }
 
+    // Sanitize dates
+    if (billData.issueDate === "" || !billData.issueDate) billData.issueDate = new Date();
+    else billData.issueDate = new Date(billData.issueDate);
+    
+    if (billData.dueDate === "" || !billData.dueDate) {
+      billData.dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    } else {
+      billData.dueDate = new Date(billData.dueDate);
+    }
+
     // Auto-calculate totals if not provided correctly by frontend
     const subtotal = items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0);
     const taxAmount = items.reduce((acc: number, item: any) => acc + (item.taxAmount || 0), 0);
@@ -231,6 +241,13 @@ export class BillsController extends BaseController {
 
     if (!existingBill) throw new Error('Bill not found');
     if (existingBill.status === 'void') throw new Error('Cannot update voided bill');
+
+    // Sanitize dates
+    if (billData.issueDate === "") delete billData.issueDate;
+    else if (billData.issueDate) billData.issueDate = new Date(billData.issueDate);
+    
+    if (billData.dueDate === "") delete billData.dueDate;
+    else if (billData.dueDate) billData.dueDate = new Date(billData.dueDate);
 
     // If there are payments, some changes might be restricted or should re-calculate balance
     // For simplicity, let's allow updates but re-calculate balance
@@ -325,7 +342,7 @@ export class BillsController extends BaseController {
           amount: paymentAmount,
           paymentMethod,
           referenceNo,
-          paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+          paymentDate: (paymentDate && paymentDate !== "") ? new Date(paymentDate) : new Date(),
           notes,
           createdBy: userId
         }

@@ -66,7 +66,7 @@ router.use('/orders', ordersRoutes);
 router.use('/payments', paymentsRoutes);
 router.use('/purchase', purchaseRoutes);
 router.use('/inventory', inventoryRoutes);
-router.use('/tickets', ticketsRoutes);
+router.use('/support/tickets', ticketsRoutes);
 router.use('/dashboard', dashboardRoutes);
 
 // Temporary routes for modules requested

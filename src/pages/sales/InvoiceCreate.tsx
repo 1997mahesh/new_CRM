@@ -90,7 +90,15 @@ export function InvoiceCreatePage() {
               discountType: data.discountType || "Fixed",
               discountValue: data.discountValue || 0
             });
-            setItems(data.items || []);
+            setItems((data.items || []).map((i: any) => ({
+              id: i.id || Date.now() + Math.random(),
+              description: i.description || "",
+              quantity: i.quantity || 1,
+              price: i.price || i.unitPrice || 0,
+              total: i.total || (Number(i.quantity || 1) * Number(i.price || i.unitPrice || 0)),
+              tax: i.tax || 0,
+              discount: i.discount || 0
+            })));
           }
         } else {
           const numRes = await api.get('/system/number-series/next/invoice');

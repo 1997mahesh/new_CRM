@@ -70,7 +70,7 @@ export class LeadsController extends BaseController {
         assignedUserId: assignedUserId || null,
         priority: priority || 'Medium',
         notes,
-        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : null,
+        expectedCloseDate: (expectedCloseDate && expectedCloseDate !== "") ? new Date(expectedCloseDate) : null,
         tags: tags || [],
         status: status || 'Open'
       }
@@ -98,7 +98,7 @@ export class LeadsController extends BaseController {
         assignedUserId: assignedUserId || null,
         priority,
         notes,
-        expectedCloseDate: expectedCloseDate ? new Date(expectedCloseDate) : undefined,
+        expectedCloseDate: (expectedCloseDate && expectedCloseDate !== "") ? new Date(expectedCloseDate) : undefined,
         tags: tags || undefined,
         status
       }

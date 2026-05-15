@@ -39,10 +39,11 @@ async function main() {
 
   const categories = [];
   for (const c of categoriesData) {
+    const slug = c.name.toLowerCase().replace(/ /g, '-');
     const category = await prisma.inventoryCategory.upsert({
       where: { name: c.name },
-      update: { description: c.description },
-      create: { name: c.name, description: c.description },
+      update: { description: c.description, slug },
+      create: { name: c.name, description: c.description, slug },
     });
     categories.push(category);
   }

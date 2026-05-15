@@ -28,9 +28,9 @@ async function main() {
 
   // 2. Vendors
   const vendors = [
-    { id: 'v-001', name: 'Global Tech Solutions', contactName: 'John Smith', email: 'sales@globaltech.com' },
-    { id: 'v-002', name: 'Logistics Pro', contactName: 'Sarah Jenkins', email: 'support@logisticspro.com' },
-    { id: 'v-003', name: 'Office Depot Corp', contactName: 'Mike Ross', email: 'orders@officedepot.com' },
+    { id: 'v-001', name: 'Global Tech Solutions', contactPerson: 'John Smith', email: 'sales@globaltech.com' },
+    { id: 'v-002', name: 'Logistics Pro', contactPerson: 'Sarah Jenkins', email: 'support@logisticspro.com' },
+    { id: 'v-003', name: 'Office Depot Corp', contactPerson: 'Mike Ross', email: 'orders@officedepot.com' },
   ];
 
   for (const v of vendors) {
@@ -78,9 +78,9 @@ async function main() {
 
   // 5. Purchase Orders
   const pos = [
-    { number: 'PO-2026-001', vendorId: 'v-001', amount: 25000, status: 'Received', date: new Date('2026-04-15') },
-    { number: 'PO-2026-002', vendorId: 'v-002', amount: 4500, status: 'Pending', date: new Date('2026-05-01') },
-    { number: 'PO-2026-003', vendorId: 'v-001', amount: 15000, status: 'Received', date: new Date('2026-04-20') },
+    { number: 'PO-2026-001', vendorId: 'v-001', totalAmount: 25000, status: 'Received', issueDate: new Date('2026-04-15') },
+    { number: 'PO-2026-002', vendorId: 'v-002', totalAmount: 4500, status: 'Pending', issueDate: new Date('2026-05-01') },
+    { number: 'PO-2026-003', vendorId: 'v-001', totalAmount: 15000, status: 'Received', issueDate: new Date('2026-04-20') },
   ];
 
   for (const po of pos) {

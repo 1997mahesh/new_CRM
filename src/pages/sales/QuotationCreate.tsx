@@ -99,7 +99,14 @@ export function QuotationCreatePage() {
               discount: q.discount || 0,
               terms: q.terms || ""
             });
-            setItems(q.items || []);
+            setItems((q.items || []).map((i: any) => ({
+              id: i.id || Math.random().toString(36).substr(2, 9),
+              description: i.description || "",
+              quantity: i.quantity || 0,
+              unitPrice: i.unitPrice || 0,
+              taxPercent: i.taxPercent || 0,
+              total: i.total || i.totalAmount || 0
+            })));
           }
         }
       } catch (err) {

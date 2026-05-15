@@ -105,7 +105,14 @@ export default function OrderCreatePage() {
               discount: o.discount || 0,
               terms: o.terms || ""
             });
-            setItems(o.items || []);
+            setItems((o.items || []).map((i: any) => ({
+              id: i.id || Math.random().toString(36).substr(2, 9),
+              description: i.description || "",
+              quantity: i.quantity || 0,
+              unitPrice: i.unitPrice || 0,
+              taxPercent: i.taxPercent || 0,
+              total: i.total || i.totalAmount || 0
+            })));
           }
         }
       } catch (err) {

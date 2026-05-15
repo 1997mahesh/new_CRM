@@ -41,9 +41,13 @@ import InventoryDashboard from "./pages/inventory/InventoryDashboard";
 import InvProductsPage from "./pages/inventory/Products";
 import InvCategoriesPage from "./pages/inventory/Categories";
 import StockPage from "./pages/inventory/Stock";
+import ProductCreatePage from "./pages/inventory/ProductCreate";
+import ProductViewPage from "./pages/inventory/ProductView";
 import SupportDashboard from "./pages/support/SupportDashboard";
 import TicketsPage from "./pages/support/Tickets";
-import { TicketCreatePage } from "./pages/support/TicketCreate";
+import TicketCreatePage from "./pages/support/TicketCreate";
+import TicketDetailPage from "./pages/support/TicketDetail";
+import TicketEditPage from "./pages/support/TicketEdit";
 import SupportCategoriesPage from "./pages/support/SupportCategories";
 import CRMDashboard from "./pages/crm/CRMDashboard";
 import CRM_Todos from "./pages/crm/Todos";
@@ -145,6 +149,9 @@ export default function App() {
           {/* Inventory Module */}
           <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
           <Route path="/inventory/products" element={<InvProductsPage />} />
+          <Route path="/inventory/products/new" element={<ProductCreatePage />} />
+          <Route path="/inventory/products/:id" element={<ProductViewPage />} />
+          <Route path="/inventory/products/:id/edit" element={<ProductCreatePage />} />
           <Route path="/inventory/categories" element={<InvCategoriesPage />} />
           <Route path="/inventory/stock" element={<StockPage />} />
 
@@ -152,6 +159,8 @@ export default function App() {
           <Route path="/support/dashboard" element={<SupportDashboard />} />
           <Route path="/support/tickets" element={<TicketsPage />} />
           <Route path="/support/tickets/new" element={<TicketCreatePage />} />
+          <Route path="/support/tickets/:id" element={<TicketDetailPage />} />
+          <Route path="/support/tickets/:id/edit" element={<TicketEditPage />} />
           <Route path="/support/categories" element={<SupportCategoriesPage />} />
 
           {/* Finance Module */}
