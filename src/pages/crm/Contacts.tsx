@@ -539,7 +539,7 @@ export default function ContactsPage() {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border border-white dark:border-white/10 shadow-sm rounded-xl transition-transform group-hover:scale-105">
                           <AvatarFallback className="bg-indigo-600 text-white font-bold text-xs">
-                            {`${contact.firstName[0]}${contact.lastName[0]}`}
+                            {`${contact.firstName?.[0] || ""}${contact.lastName?.[0] || ""}`}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
@@ -597,7 +597,7 @@ export default function ContactsPage() {
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                          <div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center text-[9px] font-bold text-slate-500">
-                           {contact.assignedUser ? (contact.assignedUser.firstName[0] + (contact.assignedUser.lastName?.[0] || "")) : "?"}
+                           {contact.assignedUser ? ((contact.assignedUser.firstName?.[0] || "") + (contact.assignedUser.lastName?.[0] || "")) : "?"}
                          </div>
                          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                            {contact.assignedUser ? `${contact.assignedUser.firstName} ${contact.assignedUser.lastName}` : "Unassigned"}

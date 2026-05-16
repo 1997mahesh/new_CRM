@@ -36,7 +36,6 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES = ["Technical", "Billing", "Sales", "General", "Onboarding"];
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
 const SOURCES = ["Web", "Email", "Phone", "Chat", "Internal"];
 
@@ -46,13 +45,14 @@ export default function TicketCreatePage() {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   // Initial form state
   const [formData, setFormData] = useState({
     subject: searchParams.get("subject") || "",
     customerId: searchParams.get("customerId") || "",
     customerName: searchParams.get("customerName") || "",
-    category: searchParams.get("category") || "Technical",
+    category: searchParams.get("category") || "",
     priority: searchParams.get("priority") || "Medium",
     source: "Web",
     assignedUserId: searchParams.get("assignTo") || "unassigned",
@@ -60,6 +60,37 @@ export default function TicketCreatePage() {
     status: "Open",
     slaDueDate: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() // Default 48h
   });
+
+  useEffect(() => {
+    const savedCategories = localStorage.getItem("support_categories");
+    let activeCategories: any[] = [];
+    
+    if (savedCategories) {
+      try {
+        const parsed = JSON.parse(savedCategories);
+        if (Array.isArray(parsed)) {
+          activeCategories = parsed.filter((c: any) => c.active);
+        }
+      } catch (e) {
+        console.error("Failed to parse categories", e);
+      }
+    }
+
+    // Fallback to minimal seed if empty to avoid broken UI
+    if (activeCategories.length === 0) {
+      activeCategories = [
+        { id: "cat_1", name: "Technical Support", active: true },
+        { id: "cat_2", name: "Billing & Finance", active: true },
+        { id: "cat_3", name: "Product Training", active: true },
+        { id: "cat_4", name: "Feature Requests", active: true },
+      ];
+    }
+
+    setCategories(activeCategories);
+    if (!formData.category && activeCategories.length > 0) {
+      setFormData(prev => ({ ...prev, category: activeCategories[0].name }));
+    }
+  }, []);
 
   useEffect(() => {
     const fetchRequired = async () => {
@@ -276,8 +307,8 @@ export default function TicketCreatePage() {
                     <SelectValue placeholder="Select Area" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl italic">
-                    {CATEGORIES.map(c => (
-                      <SelectItem key={c} value={c} className="italic">{c}</SelectItem>
+                    {categories.map(c => (
+                      <SelectItem key={c.id} value={c.name} className="italic">{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

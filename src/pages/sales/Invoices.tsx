@@ -485,7 +485,7 @@ export default function InvoicesPage() {
                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50/50 dark:bg-white/5 rounded-2xl border border-slate-100 dark:border-white/5 group hover:bg-white transition-all">
                     <div className="flex items-center gap-4">
                        <div className="h-10 w-10 rounded-full flex items-center justify-center text-[10px] font-bold uppercase bg-red-50 text-red-600">
-                          {item.customerName[0]}
+                          {item.customerName?.[0] || "C"}
                        </div>
                        <div>
                           <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{item.customerName}</p>

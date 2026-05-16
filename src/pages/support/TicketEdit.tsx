@@ -32,7 +32,6 @@ import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const CATEGORIES = ["Technical", "Billing", "Sales", "General", "Onboarding"];
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
 const SOURCES = ["Web", "Email", "Phone", "Chat", "Internal"];
 const STATUSES = ["Open", "In Progress", "Pending", "Solved", "Closed"];
@@ -44,13 +43,14 @@ export default function TicketEditPage() {
   const [fetching, setFetching] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   // Initial form state
   const [formData, setFormData] = useState({
     subject: "",
     customerId: "",
     customerName: "",
-    category: "Technical",
+    category: "",
     priority: "Medium",
     source: "Web",
     assignedUserId: "unassigned",
@@ -58,6 +58,32 @@ export default function TicketEditPage() {
     status: "Open",
     slaDueDate: ""
   });
+
+  useEffect(() => {
+    const savedCategories = localStorage.getItem("support_categories");
+    let activeCategories: any[] = [];
+    
+    if (savedCategories) {
+      try {
+        const parsed = JSON.parse(savedCategories);
+        if (Array.isArray(parsed)) {
+          activeCategories = parsed.filter((c: any) => c.active);
+        }
+      } catch (e) {
+        console.error("Failed to parse categories", e);
+      }
+    }
+
+    // Fallback to minimal seed if empty
+    if (activeCategories.length === 0) {
+      activeCategories = [
+        { id: "cat_1", name: "Technical Support", active: true },
+        { id: "cat_2", name: "Billing & Finance", active: true },
+      ];
+    }
+
+    setCategories(activeCategories);
+  }, []);
 
   useEffect(() => {
     const fetchRequired = async () => {
@@ -295,8 +321,8 @@ export default function TicketEditPage() {
                     <SelectValue placeholder="Select Area" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl italic">
-                    {CATEGORIES.map(c => (
-                      <SelectItem key={c} value={c} className="italic">{c}</SelectItem>
+                    {categories.map(c => (
+                      <SelectItem key={c.id} value={c.name} className="italic">{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

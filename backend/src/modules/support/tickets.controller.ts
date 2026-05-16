@@ -692,6 +692,19 @@ export class TicketsController extends BaseController {
     // The dashboard logic uses `status NOT IN ['Solved', 'Closed']` and `slaDueDate < now`
     
     await prisma.ticket.createMany({ data: tickets });
+
+    // Sync NumberSeries to start after the seeded tickets
+    await prisma.numberSeries.upsert({
+      where: { name: 'ticket' },
+      update: { lastNumber: tickets.length },
+      create: {
+        name: 'ticket',
+        prefix: 'TKT-2026-',
+        padding: 4,
+        lastNumber: tickets.length
+      }
+    });
+
     return { count: tickets.length };
   });
 }

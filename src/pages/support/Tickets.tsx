@@ -1,33 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { SupportTicketFilters } from "@/components/support/SupportTicketFilters";
 import { 
   Plus, 
-  Search, 
-  Filter, 
   Download, 
   Eye, 
   MoreHorizontal, 
   ChevronRight, 
   Building2, 
-  Columns as ColumnsIcon, 
-  Search as SearchIcon, 
   Activity,
   Trash2,
   CheckCircle2,
   RefreshCcw,
-  Calendar,
-  ShieldAlert,
   User,
   Tag,
   Clock,
   ExternalLink,
   ChevronLeft,
   Settings2,
-  FileText,
-  Sparkles
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -78,9 +71,10 @@ export default function SupportTicketsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [tickets, setTickets] = useState<any[]>([]);
-  const [pagination, setPagination] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [visibleColumns, setVisibleColumns] = useState<string[]>(COLUMN_CONFIG.map(c => c.id));
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -109,7 +103,7 @@ export default function SupportTicketsPage() {
   const fetchTickets = async () => {
     setLoading(true);
     try {
-      const params: any = { page, limit: 10 };
+      const params: any = { limit: 1000 }; // Fetch a large sample for client-side pagination
       if (status) params.status = status;
       if (priority) params.priority = priority;
       if (department) params.department = department;
@@ -121,7 +115,7 @@ export default function SupportTicketsPage() {
       const response = await api.get('/support/tickets', params);
       if (response.success && response.data) {
         setTickets(response.data.items || []);
-        setPagination(response.data.pagination || {});
+        setCurrentPage(1); // Reset to page 1 on new fetch
       }
     } catch (error) {
       toast.error("Failed to fetch tickets");
@@ -187,6 +181,13 @@ export default function SupportTicketsPage() {
     }
   };
 
+  // Pagination Logic
+  const totalPages = Math.ceil(tickets.length / rowsPerPage);
+  const paginatedTickets = tickets.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
+
   const isVisible = (id: string) => visibleColumns.includes(id);
 
   return (
@@ -219,138 +220,27 @@ export default function SupportTicketsPage() {
         </div>
       </div>
 
-      {/* Modern Filter Toolbar */}
-      <Card className="border-slate-100 dark:border-white/5 bg-white dark:bg-[#1f1a1d] p-3 shadow-soft rounded-2xl overflow-hidden font-jakarta italic">
-         <div className="flex items-center justify-between gap-3 w-full px-1">
-            <div className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap pb-1 xl:pb-0">
-               {/* Left: Search */}
-               <div className="w-[280px] shrink-0 relative group">
-               <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-               <Input 
-                 placeholder="Search Tickets..." 
-                 value={search}
-                 onChange={(e) => updateFilter("search", e.target.value)}
-                 className="pl-11 h-[42px] border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-white/5 rounded-xl font-bold italic text-xs shadow-sm hover:border-blue-400 transition-colors w-full" 
-               />
-            </div>
-
-            {/* Middle: Filters Group (now direct children for better alignment) */}
-            
-            {/* Columns Selector */}
-            <DropdownMenu>
-               <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="h-[42px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
-                     <ColumnsIcon className="h-3.5 w-3.5 text-blue-600" />
-                     Columns
-                  </Button>
-               </DropdownMenuTrigger>
-               <DropdownMenuContent align="end" className="w-56 rounded-xl italic">
-                  <DropdownMenuGroup>
-                     <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-slate-400 p-3 italic">Visible Columns</DropdownMenuLabel>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  {COLUMN_CONFIG.map(col => (
-                     <DropdownMenuCheckboxItem
-                       key={col.id}
-                       checked={isVisible(col.id)}
-                       onCheckedChange={() => toggleColumn(col.id)}
-                       className="text-xs font-bold italic"
-                     >
-                       {col.label}
-                     </DropdownMenuCheckboxItem>
-                  ))}
-               </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Select value={status || "all"} onValueChange={(val) => updateFilter("status", val)}>
-               <SelectTrigger className="h-[42px] w-[110px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
-                  <SelectValue placeholder="Status" />
-               </SelectTrigger>
-               <SelectContent className="rounded-xl italic">
-                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Solved">Solved</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-               </SelectContent>
-            </Select>
-
-            <Select value={priority || "all"} onValueChange={(val) => updateFilter("priority", val)}>
-               <SelectTrigger className="h-[42px] w-[110px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
-                  <SelectValue placeholder="Priority" />
-               </SelectTrigger>
-               <SelectContent className="rounded-xl italic">
-                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                  <SelectItem value="Critical" className="text-red-600 font-bold italic">Critical</SelectItem>
-                  <SelectItem value="High" className="text-orange-500 font-bold italic">High</SelectItem>
-                  <SelectItem value="Medium" className="text-blue-500 font-bold italic">Medium</SelectItem>
-                  <SelectItem value="Low" className="text-slate-500 font-bold italic">Low</SelectItem>
-               </SelectContent>
-            </Select>
-
-            <Select value={category || "all"} onValueChange={(val) => updateFilter("category", val)}>
-               <SelectTrigger className="h-[42px] w-[125px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
-                  <SelectValue placeholder="Category" />
-               </SelectTrigger>
-               <SelectContent className="rounded-xl italic">
-                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                  <SelectItem value="Technical Support">Technical Support</SelectItem>
-                  <SelectItem value="Billing & Finance">Billing & Finance</SelectItem>
-                  <SelectItem value="API Integration">API Integration</SelectItem>
-                  <SelectItem value="Authentication">Authentication</SelectItem>
-                  <SelectItem value="Feature Requests">Feature Requests</SelectItem>
-                  <SelectItem value="Customer Portal">Customer Portal</SelectItem>
-                  <SelectItem value="Security Issues">Security Issues</SelectItem>
-                  <SelectItem value="Server Infrastructure">Server Infrastructure</SelectItem>
-                  <SelectItem value="CRM Automation">CRM Automation</SelectItem>
-               </SelectContent>
-            </Select>
-
-            <Select value={assignedUserId || "all"} onValueChange={(val) => updateFilter("assignedUserId", val)}>
-               <SelectTrigger className="h-[42px] w-[115px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
-                  <SelectValue placeholder="Agent" />
-               </SelectTrigger>
-               <SelectContent className="rounded-xl italic">
-                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                  <SelectItem value="unassigned" className="italic text-slate-400 font-bold italic">Unassigned</SelectItem>
-                  {users.map(u => (
-                     <SelectItem key={u.id} value={u.id} className="italic">{u.firstName} {u.lastName}</SelectItem>
-                  ))}
-               </SelectContent>
-            </Select>
-
-            <Select value={dateRange || "all"} onValueChange={(val) => updateFilter("dateRange", val)}>
-               <SelectTrigger className="h-[42px] w-[105px] shrink-0 rounded-xl border-slate-200 bg-white dark:bg-white/5 dark:border-white/10 italic text-sm font-medium tracking-normal gap-1 px-3">
-                  <SelectValue placeholder="Date" />
-               </SelectTrigger>
-               <SelectContent className="rounded-xl italic">
-                  <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="yesterday">Yesterday</SelectItem>
-                  <SelectItem value="week">Past 7 Days</SelectItem>
-                  <SelectItem value="month">Past 30 Days</SelectItem>
-               </SelectContent>
-            </Select>
-
-            </div>
-
-            {/* Right: Refresh Button */}
-            <Button 
-               variant="outline" 
-               onClick={fetchTickets}
-               className="h-[42px] shrink-0 rounded-xl text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-600/10 border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 transition-all text-sm font-medium tracking-normal gap-1.5 flex items-center px-4 shadow-sm ml-auto"
-            >
-               <RefreshCcw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-               <span className="hidden sm:inline">Refresh</span>
-            </Button>
-         </div>
-      </Card>
+      {/* Support Ticket Filter Toolbar */}
+      <SupportTicketFilters 
+        search={search}
+        status={status}
+        priority={priority}
+        category={category}
+        assignedUserId={assignedUserId}
+        dateRange={dateRange}
+        users={users}
+        COLUMN_CONFIG={COLUMN_CONFIG}
+        visibleColumns={visibleColumns}
+        toggleColumn={toggleColumn}
+        updateFilter={updateFilter}
+        onRefresh={fetchTickets}
+        loading={loading}
+      />
 
       {/* Table Section */}
       <Card className="border-slate-200 dark:border-white/5 bg-white dark:bg-[#211c1f] rounded-2xl shadow-soft dark:shadow-2xl overflow-hidden relative">
          <div className="overflow-x-auto min-h-[400px]">
-            <table className="w-full text-left min-w-[1200px]">
+            <table className="w-full text-left min-w-[1000px]">
                <thead className="sticky top-0 z-10">
                <tr className="text-[10px] uppercase font-black tracking-widest text-slate-400 bg-slate-50/80 dark:bg-[#211c1f]/80 backdrop-blur-md border-b border-slate-100 dark:border-white/5 italic">
                   {isVisible('ticketNumber') && <th className="px-6 py-5">Ticket ID</th>}
@@ -367,8 +257,8 @@ export default function SupportTicketsPage() {
                </thead>
                <tbody className="divide-y divide-slate-50 dark:divide-white/5 text-xs font-medium italic">
                <AnimatePresence>
-               {tickets.length > 0 ? (
-                 tickets.map((tk) => (
+               {paginatedTickets.length > 0 ? (
+                 paginatedTickets.map((tk) => (
                   <motion.tr 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -558,9 +448,12 @@ export default function SupportTicketsPage() {
          <div className="bg-slate-50/50 dark:bg-white/5 px-6 py-4 border-t border-slate-100 dark:border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-3">
                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic font-mono bg-white dark:bg-white/5 px-3 py-1.5 rounded-lg border border-slate-200/50 dark:border-white/5 shadow-sm">
-                  TOTAL: {pagination.total || 0} TICKETS In System
+                  TOTAL: {tickets.length} TICKETS In System
                </span>
-               <Select value={String(pagination.limit || 10)} onValueChange={(val) => updateFilter("limit", val)}>
+               <Select value={String(rowsPerPage)} onValueChange={(val) => {
+                 setRowsPerPage(Number(val));
+                 setCurrentPage(1);
+               }}>
                   <SelectTrigger className="h-8 w-[100px] rounded-lg border-slate-200 dark:border-white/5 text-[9px] font-black uppercase italic bg-white dark:bg-white/5">
                      <SelectValue />
                   </SelectTrigger>
@@ -576,8 +469,8 @@ export default function SupportTicketsPage() {
                <Button 
                   variant="outline" 
                   size="sm" 
-                  disabled={page === 1}
-                  onClick={() => updateFilter("page", String(page - 1))}
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                   className="h-9 px-3 rounded-xl border-slate-200 dark:border-white/10 dark:bg-white/5 font-black text-[10px] uppercase italic gap-2 transition-all hover:border-blue-500"
                >
                   <ChevronLeft className="h-4 w-4" />
@@ -585,28 +478,34 @@ export default function SupportTicketsPage() {
                </Button>
                
                <div className="flex items-center gap-1 px-2">
-                  {Array.from({ length: Math.min(pagination.pages || 1, 5) }, (_, i) => {
+                  {Array.from({ length: totalPages }, (_, i) => {
                     const p = i + 1;
+                    // Only show a limited number of page buttons if there are too many
+                    if (totalPages > 7) {
+                      if (p !== 1 && p !== totalPages && (p < currentPage - 1 || p > currentPage + 1)) {
+                        if (p === 2 || p === totalPages - 1) return <span key={p} className="text-slate-400">...</span>;
+                        return null;
+                      }
+                    }
                     return (
                       <Button 
                         key={p}
                         variant="ghost" 
-                        onClick={() => updateFilter("page", String(p))}
+                        onClick={() => setCurrentPage(p)}
                         className={cn(
                           "h-9 w-9 rounded-xl font-black text-[10px] transition-all",
-                          p === page ? "bg-blue-600 text-white shadow-premium scale-110" : "text-slate-500 hover:bg-white dark:hover:bg-white/5 hover:border-slate-100 dark:hover:border-white/10 italic"
+                          p === currentPage ? "bg-blue-600 text-white shadow-premium scale-110" : "text-slate-500 hover:bg-white dark:hover:bg-white/5 hover:border-slate-100 dark:hover:border-white/10 italic"
                         )}
                       >{p}</Button>
                     );
                   })}
-                  {(pagination.pages || 1) > 5 && <span className="text-slate-400 italic font-bold">...</span>}
                </div>
 
                <Button 
                   variant="outline" 
                   size="sm" 
-                  disabled={page === (pagination.pages || 1)}
-                  onClick={() => updateFilter("page", String(page + 1))}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                   className="h-9 px-3 rounded-xl border-slate-200 dark:border-white/10 dark:bg-white/5 font-black text-[10px] uppercase italic gap-2 transition-all hover:border-blue-500"
                >
                   NEXT

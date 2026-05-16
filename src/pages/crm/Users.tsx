@@ -614,7 +614,7 @@ export default function UsersPage() {
                       <div className="flex items-center gap-4">
                         <Avatar className="h-11 w-11 border-2 border-white dark:border-white/10 shadow-sm rounded-xl">
                           <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-bold text-xs">
-                            {user.firstName[0]}{user.lastName?.[0] || ""}
+                            {(user.firstName?.[0] || "")}{(user.lastName?.[0] || "")}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">

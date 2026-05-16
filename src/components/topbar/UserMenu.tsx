@@ -27,7 +27,7 @@ export function UserMenu() {
 
   if (!user) return null;
 
-  const initials = (user.firstName?.[0] || "") + (user.lastName?.[0] || user.email[0]).toUpperCase();
+  const initials = (user.firstName?.[0] || "") + (user.lastName?.[0] || user.email?.[0] || "?").toUpperCase();
 
   return (
     <DropdownMenu>
@@ -38,7 +38,7 @@ export function UserMenu() {
             <AvatarFallback className="bg-blue-600 text-white text-xs font-bold uppercase transition-colors">{initials}</AvatarFallback>
           </Avatar>
           <div className="text-left hidden sm:block">
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-none truncate w-24">{user.firstName || user.email.split('@')[0]}</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-none truncate w-24">{user.firstName || user.email?.split('@')[0] || "User"}</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-none mt-1 uppercase tracking-tighter">{user.role}</p>
           </div>
         </Button>

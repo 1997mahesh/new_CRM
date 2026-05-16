@@ -548,7 +548,7 @@ export default function CustomersPage() {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10 border border-white dark:border-white/10 shadow-sm rounded-xl transition-transform group-hover:scale-105">
                           <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
-                            {cust.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                            {(cust.name || "C").split(' ').map(n => n[0] || '').join('').substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
@@ -599,7 +599,7 @@ export default function CustomersPage() {
                     <td className="px-6 py-5 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                          <div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center text-[9px] font-bold text-slate-500">
-                           {cust.assignedUser ? (cust.assignedUser.firstName[0] + (cust.assignedUser.lastName?.[0] || "")) : "?"}
+                           {cust.assignedUser ? ((cust.assignedUser.firstName?.[0] || "") + (cust.assignedUser.lastName?.[0] || "")) : "?"}
                          </div>
                          <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                            {cust.assignedUser ? `${cust.assignedUser.firstName} ${cust.assignedUser.lastName}` : "Unassigned"}

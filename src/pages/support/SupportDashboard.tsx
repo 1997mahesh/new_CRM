@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { SupportDashboardFilters } from "@/components/support/SupportDashboardFilters";
 import { 
   BarChart3, 
   Clock, 
@@ -14,16 +15,9 @@ import {
   Plus,
   ArrowRight,
   ChevronRight,
-  Calendar,
-  Activity,
   UserCheck,
-  Filter,
-  RefreshCcw,
   LayoutDashboard,
-  Building2,
-  ShieldAlert,
-  Loader2,
-  Sparkles
+  Activity
 } from "lucide-react";
 import { 
   Tooltip as RechartsTooltip, 
@@ -72,22 +66,20 @@ export default function SupportDashboard() {
 
   // Filters
   const [filters, setFilters] = useState({
-    dateRange: "all",
-    priority: "all",
-    status: "all",
-    department: "all"
+    dateRange: "",
+    priority: "",
+    status: "",
+    department: ""
   });
-
-  const [seeding, setSeeding] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const params: any = {};
-      if (filters.dateRange && filters.dateRange !== "all") params.dateRange = filters.dateRange;
-      if (filters.priority && filters.priority !== "all") params.priority = filters.priority;
-      if (filters.status && filters.status !== "all") params.status = filters.status;
-      if (filters.department && filters.department !== "all") params.department = filters.department;
+      if (filters.dateRange) params.dateRange = filters.dateRange;
+      if (filters.priority) params.priority = filters.priority;
+      if (filters.status) params.status = filters.status;
+      if (filters.department) params.department = filters.department;
 
       const response = await api.get('/support/tickets/stats', params);
       if (response.success && response.data) {
@@ -105,23 +97,6 @@ export default function SupportDashboard() {
       toast.error("Failed to fetch dashboard data");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const seedData = async () => {
-    setSeeding(true);
-    try {
-      const response = await api.post('/support/tickets/seed', {});
-      if (response.success) {
-        toast.success(`Seeded ${response.data?.count || 0} sample tickets!`);
-        fetchData();
-      } else {
-        toast.error("Failed to seed tickets");
-      }
-    } catch (error) {
-      toast.error("Error seeding data");
-    } finally {
-      setSeeding(false);
     }
   };
 
@@ -215,137 +190,13 @@ export default function SupportDashboard() {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <Card className="p-2 border-slate-100 dark:border-white/5 bg-white dark:bg-[#1f1a1d] shadow-soft rounded-2xl overflow-visible">
-         <div className="flex flex-wrap items-center justify-between gap-4 w-full px-4">
-            {/* Left Side: Intelligence Label */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-white/5 rounded-xl border border-slate-100 dark:border-white/10 shrink-0">
-               <Filter className="h-4 w-4 text-blue-600" />
-               <span className="text-[10px] font-black text-slate-500 underline decoration-blue-500/30 underline-offset-4 uppercase tracking-widest italic whitespace-nowrap">Intelligence Filters</span>
-            </div>
-            
-            {/* Right Side Group: Filters + Refresh aligned right */}
-            <div className="flex flex-wrap items-center gap-4 ml-auto overflow-visible">
-               <div className="flex flex-wrap items-center gap-3">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={seedData} 
-                    disabled={seeding}
-                    className="border-dashed border-blue-200 text-blue-600 hover:bg-blue-100 italic text-[10px] font-bold uppercase tracking-widest gap-2 h-10 px-6 rounded-xl shadow-sm transition-all whitespace-nowrap"
-                  >
-                    {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-blue-500" />}
-                    Re-Seed Sample Tickets
-                  </Button>
-                  {/* Time Filter */}
-                  <div className="w-[180px] shrink-0">
-                     <Select value={filters.dateRange} onValueChange={(val) => setFilters({...filters, dateRange: val})}>
-                        <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-white/10 italic text-xs font-bold bg-white dark:bg-white/5 shadow-sm hover:border-blue-400 transition-colors">
-                           <div className="flex items-center gap-2">
-                              <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                              <SelectValue placeholder="Date" />
-                           </div>
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl italic">
-                           <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                           <SelectItem value="today">Today</SelectItem>
-                           <SelectItem value="week">Last 7 Days</SelectItem>
-                           <SelectItem value="month">Last 30 Days</SelectItem>
-                           <SelectItem value="this_month">This Month</SelectItem>
-                           <SelectItem value="this_year">This Year</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
- 
-                  {/* Priority Filter */}
-                  <div className="w-[180px] shrink-0">
-                     <Select value={filters.priority} onValueChange={(val) => setFilters({...filters, priority: val})}>
-                        <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-white/10 italic text-xs font-bold bg-white dark:bg-white/5 shadow-sm hover:border-blue-400 transition-colors">
-                           <div className="flex items-center gap-2">
-                              <ShieldAlert className="h-3.5 w-3.5 text-slate-400" />
-                              <SelectValue placeholder="Priority" />
-                           </div>
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl italic">
-                           <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                           <SelectItem value="Critical" className="text-red-600 font-bold">Critical</SelectItem>
-                           <SelectItem value="High" className="text-orange-500 font-bold">High</SelectItem>
-                           <SelectItem value="Medium" className="text-blue-500 font-bold">Medium</SelectItem>
-                           <SelectItem value="Low" className="text-slate-500 font-bold">Low</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
- 
-                  {/* Status Filter */}
-                  <div className="w-[180px] shrink-0">
-                     <Select value={filters.status} onValueChange={(val) => setFilters({...filters, status: val})}>
-                        <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-white/10 italic text-xs font-bold bg-white dark:bg-white/5 shadow-sm hover:border-blue-400 transition-colors">
-                           <div className="flex items-center gap-2">
-                              <Activity className="h-3.5 w-3.5 text-slate-400" />
-                              <SelectValue placeholder="Status" />
-                           </div>
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl italic">
-                           <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                           <SelectItem value="Open">Open</SelectItem>
-                           <SelectItem value="In Progress">In Progress</SelectItem>
-                           <SelectItem value="Pending">Pending</SelectItem>
-                           <SelectItem value="Solved">Resolved</SelectItem>
-                           <SelectItem value="Closed">Closed</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
- 
-                  {/* Department Filter */}
-                  <div className="w-[180px] shrink-0">
-                     <Select value={filters.department} onValueChange={(val) => setFilters({...filters, department: val})}>
-                        <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-white/10 italic text-xs font-bold bg-white dark:bg-white/5 shadow-sm hover:border-blue-400 transition-colors">
-                           <div className="flex items-center gap-2">
-                              <Building2 className="h-3.5 w-3.5 text-slate-400" />
-                              <SelectValue placeholder="Category" />
-                           </div>
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl italic">
-                           <SelectItem value="all" className="font-bold underline decoration-blue-500/20 italic">All</SelectItem>
-                           <SelectItem value="Technical Support">Technical Support</SelectItem>
-                           <SelectItem value="Billing & Finance">Billing & Finance</SelectItem>
-                           <SelectItem value="API Integration">API Integration</SelectItem>
-                           <SelectItem value="Authentication">Authentication</SelectItem>
-                           <SelectItem value="Feature Requests">Feature Requests</SelectItem>
-                           <SelectItem value="Customer Portal">Customer Portal</SelectItem>
-                           <SelectItem value="Security Issues">Security Issues</SelectItem>
-                           <SelectItem value="Server Infrastructure">Server Infrastructure</SelectItem>
-                           <SelectItem value="CRM Automation">CRM Automation</SelectItem>
-                        </SelectContent>
-                     </Select>
-                  </div>
-               </div>
- 
-               <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={fetchData} 
-                  className="text-blue-600 hover:bg-blue-50 italic text-[10px] font-bold uppercase tracking-widest gap-2 h-10 px-6 rounded-xl border border-transparent hover:border-blue-100 shadow-sm transition-all whitespace-nowrap min-w-[140px] shrink-0 ml-2"
-               >
-                  <RefreshCcw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                  Refresh Data
-               </Button>
-
-               {(!stats || stats.totalTickets === 0) && (
-                 <Button 
-                   variant="outline" 
-                   size="sm" 
-                   onClick={seedData} 
-                   disabled={seeding}
-                   className="border-dashed border-blue-200 text-blue-600 hover:bg-blue-100 italic text-[10px] font-bold uppercase tracking-widest gap-2 h-10 px-6 rounded-xl shadow-sm transition-all whitespace-nowrap"
-                 >
-                   {seeding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 text-blue-500" />}
-                   Seed Sample Data
-                 </Button>
-               )}
-            </div>
-         </div>
-      </Card>
+      {/* Support Dashboard Filter Bar */}
+      <SupportDashboardFilters 
+        filters={filters} 
+        setFilters={setFilters} 
+        onRefresh={fetchData} 
+        loading={loading} 
+      />
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
